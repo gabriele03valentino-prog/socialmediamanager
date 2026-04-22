@@ -1,0 +1,82 @@
+import type { Platform } from "@prisma/client";
+import { auth } from "@/auth";
+import { ConnectAccountButton } from "@/components/ConnectAccountButton";
+import { prisma } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+const PLATFORMS: Platform[] = ["INSTAGRAM", "FACEBOOK", "TIKTOK", "YOUTUBE", "SPOTIFY"];
+
+export default async function SettingsPage() {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  const [profile, accounts] = await Promise.all([
+    prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
+    prisma.socialAccount.findMany({ where: { userId: session.user.id } }),
+  ]);
+
+  const byPlatform = new Map(accounts.map((a) => [a.platform, a] as const));
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-8">
+      <header>
+        <h1 className="text-2xl font-semibold">Impostazioni</h1>
+        <p className="text-sm text-neutral-500">
+          Collega i tuoi profili e compila il tuo profilo artistico per migliorare i
+          suggerimenti.
+        </p>
+      </header>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Profilo artista
+        </h2>
+        <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900">
+          {profile ? (
+            <dl className="grid grid-cols-2 gap-y-2">
+              <dt className="text-neutral-500">Stage name</dt>
+              <dd>{profile.stageName}</dd>
+              <dt className="text-neutral-500">Genere</dt>
+              <dd>{profile.genre}</dd>
+              {profile.city && (
+                <>
+                  <dt className="text-neutral-500">Città</dt>
+                  <dd>{profile.city}</dd>
+                </>
+              )}
+            </dl>
+          ) : (
+            <p className="text-neutral-500">
+              Nessun profilo creato. (L'editor profilo arriva in una milestone
+              successiva; per ora popola a mano via Prisma Studio.)
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Account social
+        </h2>
+        <div className="space-y-2">
+          {PLATFORMS.map((p) => {
+            const acc = byPlatform.get(p);
+            return (
+              <ConnectAccountButton
+                key={p}
+                platform={p}
+                connected={!!acc}
+                handle={acc?.handle}
+              />
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-neutral-500">
+          Nota: i flussi OAuth specifici (Meta/TikTok/YouTube/Spotify) vengono
+          implementati nei milestone M1-M4. Per ora la pagina mostra solo lo stato.
+        </p>
+      </section>
+    </div>
+  );
+}

@@ -1,0 +1,260 @@
+// socialmediamanager — data model
+// Vedi README.md per il comando di setup DB.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Auth.js (NextAuth) ----
+// Schema standard dell'adattatore Prisma. Non toccare i nomi dei campi.
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  timezone      String    @default("Europe/Rome")
+
+  artistProfile  ArtistProfile?
+  accounts       Account[]
+  sessions       Session[]
+  socialAccounts SocialAccount[]
+  suggestions    Suggestion[]
+  drafts         Draft[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---- Dominio applicativo ----
+
+model ArtistProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  stageName  String
+  genre      String // es. "trap", "drill", "cantautorato", "house"
+  city       String?
+  bio        String?  @db.Text
+  websiteUrl String?
+  goals      Json? // { targetFollowersIG: 10000, targetByDate: "2026-12-31", ... }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Platform {
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  YOUTUBE
+  SPOTIFY
+}
+
+model SocialAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  platform          Platform
+  handle            String // @nome_utente o nome canale
+  externalId        String // id stabile restituito dalla piattaforma
+  accessTokenEnc    String   @db.Text // cifrato
+  refreshTokenEnc   String?  @db.Text
+  expiresAt         DateTime?
+  scopes            String[] // array di scope concessi
+  meta              Json? // dati specifici piattaforma (es. pageId per FB, channelId per YT)
+  lastSyncedAt      DateTime?
+  lastSyncError     String?  @db.Text
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metrics           MetricSnapshot[]
+  posts             Post[]
+  audienceInsights  AudienceInsight[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, platform, externalId])
+  @@index([userId, platform])
+}
+
+model MetricSnapshot {
+  id            String   @id @default(cuid())
+  accountId     String
+  capturedAt    DateTime @default(now())
+  followers     Int?
+  following     Int?
+  postsCount    Int?
+  reach         Int?
+  impressions   Int?
+  profileViews  Int?
+  // campi piattaforma-specifici (watch time YT, popularity Spotify, ecc.)
+  extra         Json?
+
+  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, capturedAt])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  REEL
+  STORY
+  SHORT
+  LIVE
+  OTHER
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  accountId  String
+  externalId String
+  postedAt   DateTime
+  mediaType  MediaType @default(OTHER)
+  caption    String?  @db.Text
+  permalink  String?
+  likes      Int?
+  comments   Int?
+  shares     Int?
+  saves      Int?
+  views      Int?
+  reach      Int?
+  impressions Int?
+  // payload grezzo per metriche specifiche (watch time, CTR, ecc.)
+  raw        Json?
+  lastSyncedAt DateTime?
+
+  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, externalId])
+  @@index([accountId, postedAt])
+}
+
+model AudienceInsight {
+  id           String   @id @default(cuid())
+  accountId    String
+  capturedAt   DateTime @default(now())
+  ageBuckets   Json? // { "13-17": 0.05, "18-24": 0.45, ... }
+  genderSplit  Json? // { male: 0.6, female: 0.4, other: 0.0 }
+  topCountries Json? // [{ code: "IT", share: 0.88 }, ...]
+  topCities    Json?
+
+  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, capturedAt])
+}
+
+enum ContentType {
+  REEL
+  CAROUSEL
+  SHORT
+  POST
+  STORY
+  TIKTOK
+  YT_LONG
+}
+
+enum SuggestionStatus {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model Suggestion {
+  id            String      @id @default(cuid())
+  userId        String
+  forDate       DateTime
+  platform      Platform
+  contentType   ContentType
+  hook          String      @db.Text
+  caption       String      @db.Text
+  hashtags      String[]
+  cta           String?
+  suggestedTime String? // HH:mm in timezone utente
+  rationale     String?     @db.Text
+  status        SuggestionStatus @default(PROPOSED)
+  generatedBy   String? // es. "claude-sonnet-4-6"
+
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft Draft?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, forDate])
+  @@index([userId, status])
+}
+
+enum DraftStatus {
+  TODO
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+model Draft {
+  id            String      @id @default(cuid())
+  userId        String
+  suggestionId  String?     @unique
+  platform      Platform
+  contentType   ContentType
+  scheduledFor  DateTime?
+  caption       String      @db.Text
+  hashtags      String[]
+  mediaNotes    String?     @db.Text
+  checklist     Json? // [{ text: "Registra 15s in studio", done: false }, ...]
+  status        DraftStatus @default(TODO)
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, scheduledFor])
+}
