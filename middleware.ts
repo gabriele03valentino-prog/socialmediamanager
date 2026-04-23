@@ -1,13 +1,18 @@
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { authConfig } from "./auth.config";
 
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+// Middleware Edge-safe: usa solo authConfig (niente adapter Prisma).
+// La validazione della sessione avviene leggendo il JWT cookie.
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
-  const { pathname } = req.nextUrl;
+  const pathname = req.nextUrl.pathname;
   const isPublic =
-    PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
-    pathname.startsWith("/api/cron") || // protette via CRON_SECRET
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
 

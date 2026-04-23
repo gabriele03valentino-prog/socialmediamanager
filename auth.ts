@@ -1,27 +1,25 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/db";
+import { authConfig } from "./auth.config";
 
-// Auth.js v5. Login **dell'app** (non dei social).
-// I social si connettono separatamente via /api/connect/<platform>.
+// Config completa — gira solo su Node.js (API routes, server components,
+// cron). Estende authConfig aggiungendo l'adapter Prisma e la strategy JWT
+// (necessaria perché il middleware non può leggere il DB su Edge).
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "database" },
-  providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
-  ],
-  pages: {
-    signIn: "/login",
-  },
+  session: { strategy: "jwt" },
   callbacks: {
-    session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
+    ...authConfig.callbacks,
+    jwt({ token, user }) {
+      if (user) token.id = user.id;
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },
