@@ -69,8 +69,11 @@ vercel.json                   # schedule cron
 
 ```bash
 pnpm install
-pnpm setup
+pnpm configure        # oppure: node scripts/setup.mjs
 ```
+
+> ⚠️ Non usare `pnpm setup`: è un comando built-in di pnpm (serve a pnpm
+> stesso per configurare il PATH). Usa `pnpm configure` o `pnpm run setup`.
 
 Lo script `scripts/setup.mjs`:
 1. Auto-genera i secret locali (`AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`)
