@@ -44,10 +44,21 @@ export default async function SettingsPage({
           .
         </div>
       ) : null}
+      {sp.connected === "youtube" ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100">
+          ✅ YouTube collegato: canale <strong>{sp.channel}</strong>.
+        </div>
+      ) : null}
       {sp.error ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-100">
           ❌ Errore OAuth: <code>{sp.error}</code>
           {sp.message ? <> — {sp.message}</> : null}
+          {sp.error === "no_youtube_channel" ? (
+            <p className="mt-2">
+              L'account Google che hai autorizzato non ha un canale YouTube associato.
+              Crea un canale su YouTube e riprova.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

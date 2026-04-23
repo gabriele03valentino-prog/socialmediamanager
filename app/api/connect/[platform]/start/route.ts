@@ -30,6 +30,12 @@ export async function GET(
     return NextResponse.redirect(`${origin}/api/connect/meta/start`);
   }
 
+  // YouTube ha la sua route dedicata.
+  if (platform === "YOUTUBE") {
+    const origin = new URL(req.url).origin;
+    return NextResponse.redirect(`${origin}/api/connect/youtube/start`);
+  }
+
   return NextResponse.json(
     {
       ok: false,

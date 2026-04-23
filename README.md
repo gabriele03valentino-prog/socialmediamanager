@@ -99,15 +99,20 @@ pnpm dev
 
 Tutte gratis. Fai una app alla volta secondo quale connettore vuoi usare prima.
 
-#### Google (login app + YouTube)
+#### Google (login app + YouTube) — ✅ M2 implementato
 1. <https://console.cloud.google.com> → nuovo progetto.
 2. APIs & Services → Credentials → Create OAuth client (Web).
-3. Authorized redirect URI:
-   - `http://localhost:3000/api/auth/callback/google`
-   - `https://<tuo-dominio>/api/auth/callback/google`
-4. Client ID / Secret → nella env come `AUTH_GOOGLE_ID/SECRET`.
-5. Abilita **YouTube Data API v3** e **YouTube Analytics API**.
-6. Il login all'app ora funziona; YouTube verrà collegato in M2.
+3. Authorized redirect URIs (aggiungili **entrambi** allo stesso client):
+   - `http://localhost:3000/api/auth/callback/google` (login app)
+   - `http://localhost:3000/api/connect/youtube/callback` (connettore YouTube)
+   - in produzione aggiungi le versioni `https://<dominio>/...`
+4. Client ID / Secret → env `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
+   (li riusiamo anche per il connettore YouTube).
+5. Abilita **YouTube Data API v3** (<https://console.cloud.google.com/apis/library/youtube.googleapis.com>)
+   e **YouTube Analytics API** (<https://console.cloud.google.com/apis/library/youtubeanalytics.googleapis.com>).
+6. In Impostazioni → Connetti YouTube: flusso OAuth separato con scope
+   `youtube.readonly` + `yt-analytics.readonly`, refresh token salvato cifrato,
+   access token auto-rinnovato a ogni sync.
 
 #### Meta (Instagram + Facebook) — ✅ M1 implementato
 1. <https://developers.facebook.com/apps/create/> → tipo **Business**.
@@ -174,7 +179,7 @@ stub nei connettori social).
 
 - [x] **M0** — Scaffold Next.js + Prisma + Auth + UI + recommender Claude + cron
 - [x] **M1** — Connettore Meta (IG + FB) full (OAuth + sync metriche/post/audience)
-- [ ] **M2** — Connettore YouTube (Data + Analytics)
+- [x] **M2** — Connettore YouTube (Data API v3 + Analytics API, auto-refresh token)
 - [ ] **M3** — Connettore TikTok
 - [ ] **M4** — Connettore Spotify + input manuale monthly listeners
 - [ ] **M5** — Dashboard evoluta (grafici, delta, best post)
