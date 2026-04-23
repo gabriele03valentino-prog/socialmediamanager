@@ -130,12 +130,16 @@ Tutte gratis. Fai una app alla volta secondo quale connettore vuoi usare prima.
    flusso Meta crea un SocialAccount FACEBOOK per ogni Pagina e un INSTAGRAM per
    ogni Pagina che ha un IG Business collegato.
 
-#### TikTok
-1. <https://developers.tiktok.com> → registra app.
-2. Aggiungi prodotto **Login Kit** con scopes `user.info.basic`, `user.info.stats`,
-   `video.list`.
-3. Redirect URI: `https://<dominio>/api/connect/tiktok/callback`.
-4. Client key/secret → env.
+#### TikTok — ✅ M3 implementato
+1. <https://developers.tiktok.com/apps/> → register app.
+2. Aggiungi prodotto **Login Kit for Web**.
+3. Richiedi gli scope: `user.info.basic`, `user.info.stats`, `user.info.profile`, `video.list`.
+4. Redirect URI:
+   - `http://localhost:3000/api/connect/tiktok/callback`
+   - `https://<tuo-dominio>/api/connect/tiktok/callback`
+5. In modalità Sandbox puoi usare l'app subito con il tuo account; per andare in
+   produzione serve review (non necessaria per uso personale).
+6. Client Key / Secret → env `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET`.
 
 #### Spotify
 1. <https://developer.spotify.com/dashboard> → crea app.
@@ -180,7 +184,7 @@ stub nei connettori social).
 - [x] **M0** — Scaffold Next.js + Prisma + Auth + UI + recommender Claude + cron
 - [x] **M1** — Connettore Meta (IG + FB) full (OAuth + sync metriche/post/audience)
 - [x] **M2** — Connettore YouTube (Data API v3 + Analytics API, auto-refresh token)
-- [ ] **M3** — Connettore TikTok
+- [x] **M3** — Connettore TikTok (user info + video list, auto-refresh token)
 - [ ] **M4** — Connettore Spotify + input manuale monthly listeners
 - [ ] **M5** — Dashboard evoluta (grafici, delta, best post)
 - [ ] **M6** — Recommender Claude + UI suggestion (base già in M0)

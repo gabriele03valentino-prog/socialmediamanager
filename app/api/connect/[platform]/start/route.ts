@@ -36,6 +36,12 @@ export async function GET(
     return NextResponse.redirect(`${origin}/api/connect/youtube/start`);
   }
 
+  // TikTok idem.
+  if (platform === "TIKTOK") {
+    const origin = new URL(req.url).origin;
+    return NextResponse.redirect(`${origin}/api/connect/tiktok/start`);
+  }
+
   return NextResponse.json(
     {
       ok: false,
