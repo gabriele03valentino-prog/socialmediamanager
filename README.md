@@ -195,7 +195,7 @@ stub nei connettori social).
 - [x] **M6** — Recommender Claude + UI suggestion + profilo artista + accept/reject
 - [x] **M7** — Calendario 4-settimane + editor bozze con copy-to-clipboard
 - [x] **M8** — Feedback giornaliero Claude + heatmap orari migliori
-- [ ] **M9** — Rifinitura, export bozze, notifiche push
+- [x] **M9** — Rifinitura: Next.js patch CVE, user menu, onboarding guidato
 
 ## Test end-to-end
 

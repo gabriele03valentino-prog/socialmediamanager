@@ -18,13 +18,19 @@ const NAV = [
   { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ] as const;
 
-export function SidebarNav({ current }: { current?: string }) {
+export function SidebarNav({
+  current,
+  children,
+}: {
+  current?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <nav className="flex h-full w-60 flex-col border-r border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="mb-8 flex items-center gap-2 px-2">
+      <Link href="/" className="mb-8 flex items-center gap-2 px-2">
         <div className="h-8 w-8 rounded-lg bg-brand-600" />
         <span className="font-semibold">SMM Studio</span>
-      </div>
+      </Link>
       <ul className="space-y-1">
         {NAV.map((item) => {
           const Icon = item.icon;
@@ -47,9 +53,7 @@ export function SidebarNav({ current }: { current?: string }) {
           );
         })}
       </ul>
-      <div className="mt-auto px-2 text-xs text-neutral-500">
-        v0.1 · made for italian artists
-      </div>
+      {children}
     </nav>
   );
 }

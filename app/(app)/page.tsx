@@ -64,6 +64,15 @@ export default async function DashboardPage() {
   ]);
 
   const byPlatform = new Map(accounts.map((a) => [a.platform, a] as const));
+  const artistProfile = await prisma.artistProfile.findUnique({
+    where: { userId },
+  });
+  const onboarding = {
+    profile: !!artistProfile,
+    anyAccount: accounts.length > 0,
+    anyMetrics: accounts.some((a) => a.metrics.length > 0),
+  };
+  const showOnboarding = !onboarding.profile || !onboarding.anyAccount;
 
   // KPI + delta per piattaforma
   function kpiFor(platform: Platform) {
@@ -157,6 +166,26 @@ export default async function DashboardPage() {
         </div>
         <SyncButton />
       </header>
+
+      {showOnboarding ? (
+        <section className="rounded-xl border border-brand-200 bg-brand-50 p-6 dark:border-brand-700/40 dark:bg-brand-700/10">
+          <h2 className="mb-2 font-semibold">Setup iniziale</h2>
+          <ol className="space-y-2 text-sm">
+            <li className={onboarding.profile ? "text-neutral-400 line-through" : ""}>
+              1. <a href="/impostazioni/profilo" className="text-brand-700 underline dark:text-brand-100">Compila il profilo artista</a> (stage name, genere, obiettivi)
+            </li>
+            <li className={onboarding.anyAccount ? "text-neutral-400 line-through" : ""}>
+              2. <a href="/impostazioni" className="text-brand-700 underline dark:text-brand-100">Collega almeno un account social</a>
+            </li>
+            <li>
+              3. Aspetta il primo sync o cliccalo dal pulsante in alto a destra
+            </li>
+            <li>
+              4. <a href="/suggerimenti" className="text-brand-700 underline dark:text-brand-100">Genera il primo piano settimanale</a> con Claude
+            </li>
+          </ol>
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {PLATFORMS.map((p) => {
