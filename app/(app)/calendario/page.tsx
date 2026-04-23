@@ -1,82 +1,91 @@
 import { auth } from "@/auth";
+import { CalendarGrid, type CalendarItem } from "@/components/CalendarGrid";
 import { prisma } from "@/lib/db";
-import { PLATFORM_LABEL } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarioPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
+  const userId = session.user.id;
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // lunedì
+  const end = new Date(start);
+  end.setDate(end.getDate() + 28);
 
   const [suggestions, drafts] = await Promise.all([
     prisma.suggestion.findMany({
-      where: { userId: session.user.id, status: "PROPOSED" },
-      orderBy: { forDate: "asc" },
+      where: {
+        userId,
+        status: "PROPOSED",
+        forDate: { gte: start, lt: end },
+      },
     }),
     prisma.draft.findMany({
-      where: { userId: session.user.id, status: { in: ["TODO", "READY"] } },
-      orderBy: { scheduledFor: "asc" },
+      where: {
+        userId,
+        status: { in: ["TODO", "READY", "PUBLISHED"] },
+        scheduledFor: { gte: start, lt: end },
+      },
     }),
   ]);
 
-  const items = [
-    ...suggestions.map((s) => ({
-      when: s.forDate,
+  const items: CalendarItem[] = [
+    ...suggestions.map<CalendarItem>((s) => ({
+      id: s.id,
+      kind: "suggestion",
+      date: s.forDate,
       time: s.suggestedTime,
-      kind: "suggerimento" as const,
-      label: s.hook,
       platform: s.platform,
+      contentType: s.contentType,
+      label: s.hook,
       status: s.status,
+      href: `/suggerimenti#${s.id}`,
     })),
-    ...drafts.map((d) => ({
-      when: d.scheduledFor ?? new Date(),
-      time: null,
-      kind: "bozza" as const,
-      label: d.caption.slice(0, 80),
+    ...drafts.map<CalendarItem>((d) => ({
+      id: d.id,
+      kind: "draft",
+      date: d.scheduledFor ?? new Date(),
+      time: d.scheduledFor?.toISOString().slice(11, 16),
       platform: d.platform,
+      contentType: d.contentType,
+      label: d.caption.slice(0, 60),
       status: d.status,
+      href: `/bozze/${d.id}`,
     })),
-  ].sort((a, b) => a.when.getTime() - b.when.getTime());
+  ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Calendario editoriale</h1>
-          <p className="text-sm text-neutral-500">
-            Suggerimenti pendenti e bozze in corso di produzione.
-          </p>
-        </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold">Calendario editoriale</h1>
+        <p className="text-sm text-neutral-500">
+          Le prossime 4 settimane. I <span className="text-pink-500">pallini</span>{" "}
+          indicano la piattaforma; clicca un item per aprirlo.
+        </p>
       </header>
 
-      {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
-          Niente in calendario. Genera i primi suggerimenti dalla Dashboard.
-        </div>
-      ) : (
-        <ul className="divide-y divide-neutral-200 rounded-xl border border-neutral-200 bg-white dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-900">
-          {items.map((it, i) => (
-            <li key={i} className="flex items-center gap-4 p-4">
-              <div className="w-28 text-sm text-neutral-500">
-                <div>{it.when.toISOString().slice(0, 10)}</div>
-                {it.time ? <div className="text-xs">{it.time}</div> : null}
-              </div>
-              <span className="inline-flex rounded bg-brand-50 px-2 py-0.5 text-xs text-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
-                {PLATFORM_LABEL[it.platform] ?? it.platform}
-              </span>
-              <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-                {it.kind}
-              </span>
-              <div className="flex-1 truncate text-sm">{it.label}</div>
-              <span className="text-xs text-neutral-400">{it.status}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <CalendarGrid items={items} />
 
-      <p className="text-xs text-neutral-400">
-        M7 ⟶ questa pagina userà FullCalendar con drag &amp; drop e pannelli laterali.
-      </p>
+      <div className="flex items-center gap-4 text-xs text-neutral-500">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-pink-500" /> Instagram
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-blue-600" /> Facebook
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-black dark:bg-white" /> TikTok
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-red-600" /> YouTube
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-green-500" /> Spotify
+        </span>
+      </div>
     </div>
   );
 }

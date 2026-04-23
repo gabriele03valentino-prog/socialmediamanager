@@ -193,7 +193,7 @@ stub nei connettori social).
 - [x] **M4** — Connettore Spotify (public artist data + input manuale monthly listeners)
 - [x] **M5** — Dashboard evoluta (grafici, delta, best post)
 - [x] **M6** — Recommender Claude + UI suggestion + profilo artista + accept/reject
-- [ ] **M7** — Calendario FullCalendar drag&drop + editor bozze
+- [x] **M7** — Calendario 4-settimane + editor bozze con copy-to-clipboard
 - [ ] **M8** — Feedback serale + email (Resend) + heatmap best time
 - [ ] **M9** — Rifinitura, export bozze, notifiche push
 
