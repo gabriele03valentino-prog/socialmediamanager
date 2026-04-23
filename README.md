@@ -65,29 +65,31 @@ auth.ts                       # config Auth.js
 vercel.json                   # schedule cron
 ```
 
-## Setup locale
+## Setup locale (macOS, 1 comando)
 
 ```bash
-# 1. installa deps
 pnpm install
+pnpm setup
+```
 
-# 2. prepara le env
+Lo script `scripts/setup.mjs`:
+1. Auto-genera i secret locali (`AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET`)
+2. Apre in Chrome gli URL di Neon, Anthropic, Google Cloud e Meta uno alla volta
+3. Ti chiede ogni valore da incollare (con default dai valori esistenti se ri-esegui)
+4. Scrive `.env` pulito
+5. Applica lo schema a Postgres (`pnpm prisma db push`)
+6. Avvia `pnpm dev` e apre `http://localhost:3000` in Chrome
+
+Puoi ri-lanciare `pnpm setup` in qualsiasi momento per cambiare un valore.
+
+### Setup manuale (se preferisci)
+
+```bash
 cp .env.example .env
-# Poi editta .env e compila almeno:
-#   - DATABASE_URL     (Neon free o Postgres locale)
-#   - AUTH_SECRET      (openssl rand -base64 32)
-#   - TOKEN_ENCRYPTION_KEY (openssl rand -hex 32)
-#   - CRON_SECRET      (stringa lunga a scelta)
-#   - AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET  (OAuth Google)
-#   - ANTHROPIC_API_KEY
-
-# 3. applica lo schema al DB
-pnpm prisma migrate dev --name init
-# (oppure `pnpm prisma db push` se vuoi saltare le migration)
-
-# 4. avvia
+# editta .env con: DATABASE_URL, AUTH_SECRET, TOKEN_ENCRYPTION_KEY,
+# CRON_SECRET, AUTH_GOOGLE_ID/SECRET, ANTHROPIC_API_KEY (+ META_*)
+pnpm prisma db push
 pnpm dev
-# → http://localhost:3000
 ```
 
 ### Setup delle app OAuth social
