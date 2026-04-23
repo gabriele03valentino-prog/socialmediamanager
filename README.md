@@ -198,7 +198,27 @@ stub nei connettori social).
 - [x] **M9** — Rifinitura: Next.js patch CVE, user menu, onboarding guidato
 - [x] **M10** — Obiettivo target views medie TikTok nel profilo
 - [x] **M11** — Modulo Brand: stage name wizard + identità visiva + cover briefs
-- [ ] **M12** — Marketing / neuromarketing (TRIBE v2 spirit)
+- [x] **M12** — Marketing / neuromarketing: persona, neuro-score, campaign planner
+
+## Modulo Marketing & TRIBE v2
+
+Il neuro-score e il piano campagna usano un system prompt Claude che codifica i
+**segnali brain-predictive di TRIBE v2** (Meta AI, CC-BY-NC-4.0):
+V1/V4 (contrasto, movimento), STS (audio-linguistico), nucleus accumbens
+(reward prediction), amigdala/insula (emotional valence), mPFC (social salience),
+DA system (novelty/prediction error).
+
+**Non** chiamiamo direttamente il modello TRIBE v2:
+- I pesi sono su HuggingFace (`facebook/tribev2`) ma richiedono GPU per inferenza
+- L'output (20k vertici corticali fsaverage5) andrebbe post-processato per essere
+  utile su contenuti pre-produzione (bozze, caption, hook)
+- La licenza CC-BY-NC-4.0 limita usi commerciali
+
+Claude produce uno score 0-100 + breakdown 6 dimensioni + 2-5 miglioramenti
+specifici in 5-10 secondi a costo trascurabile. Se in futuro vorrai integrare
+il modello reale per testare video finiti, l'integrazione sarebbe un
+microservizio Python separato — documentato come possibile estensione ma non
+incluso nell'app.
 
 ## Test end-to-end
 

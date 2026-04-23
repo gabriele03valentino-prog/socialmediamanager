@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Brain,
   Calendar,
   FileText,
   LayoutDashboard,
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/suggerimenti", label: "Suggerimenti", icon: Lightbulb },
   { href: "/bozze", label: "Bozze", icon: FileText },
   { href: "/brand", label: "Brand", icon: Palette },
+  { href: "/marketing", label: "Marketing", icon: Brain },
   { href: "/analytics/instagram", label: "Analytics", icon: BarChart3 },
   { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ] as const;

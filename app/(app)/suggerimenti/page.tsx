@@ -12,6 +12,7 @@ export default async function SuggestionsPage() {
   const suggestions = await prisma.suggestion.findMany({
     where: { userId: session.user.id, status: "PROPOSED" },
     orderBy: { forDate: "asc" },
+    include: { neuroScore: true },
   });
 
   return (
@@ -21,7 +22,8 @@ export default async function SuggestionsPage() {
           <h1 className="text-2xl font-semibold">Suggerimenti</h1>
           <p className="text-sm text-neutral-500">
             Piano settimanale generato da Claude in base ai dati dei tuoi profili e al
-            tuo profilo artista. Accetta per creare una bozza.
+            tuo profilo artista. Accetta per creare una bozza, o lancia il neuro-score
+            per un check neuromarketing.
           </p>
         </div>
         <GeneratePlanButton />
@@ -38,7 +40,12 @@ export default async function SuggestionsPage() {
       ) : (
         <div className="space-y-4">
           {suggestions.map((s) => (
-            <SuggestionCard key={s.id} s={s} showActions />
+            <SuggestionCard
+              key={s.id}
+              s={s}
+              neuroScore={s.neuroScore}
+              showActions
+            />
           ))}
         </div>
       )}

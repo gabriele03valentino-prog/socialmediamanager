@@ -29,6 +29,9 @@ model User {
   drafts         Draft[]
   brandIdentity  BrandIdentity?
   stageNameIdeas StageNameIdea[]
+  neuroScores    NeuroScore[]
+  personas       Persona[]
+  campaigns      Campaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -272,15 +275,19 @@ model Suggestion {
   rationale     String?     @db.Text
   status        SuggestionStatus @default(PROPOSED)
   generatedBy   String? // es. "claude-sonnet-4-6"
+  campaignId    String?
 
-  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  draft Draft?
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft      Draft?
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  neuroScore NeuroScore?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, forDate])
   @@index([userId, status])
+  @@index([campaignId])
 }
 
 enum DraftStatus {
@@ -305,10 +312,90 @@ model Draft {
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
+  neuroScore NeuroScore?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, status])
   @@index([userId, scheduledFor])
+}
+
+// Modulo Marketing (M12): neuro-score ispirato ai segnali brain-predictive
+// del foundation model TRIBE v2 (Meta AI). Implementazione via Claude con
+// system prompt che codifica i segnali principali del paper.
+
+model NeuroScore {
+  id           String   @id @default(cuid())
+  userId       String
+  suggestionId String?  @unique
+  draftId      String?  @unique
+  score        Int // 0-100
+  breakdown    Json // { hookStrength, emotionalValence, noveltyBias, rewardPrediction, socialSalience, curiosityGap }
+  improvements Json // array di 3 stringhe
+  generatedBy  String?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestion Suggestion? @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  draft      Draft?      @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Persona {
+  id             String  @id @default(cuid())
+  userId         String
+  name           String
+  ageRange       String
+  location       String
+  occupation     String
+  musicHabits    String  @db.Text
+  platforms      String[]
+  listeningTimes String?
+  triggers       Json // array di trigger che funzionano (es. "drop snippet venerdì sera")
+  culturalRefs   Json // array di ref (meme, influencer seguiti)
+  generatedBy    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum CampaignType {
+  SINGOLO
+  EP
+  ALBUM
+  LIVE
+  MERCH
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Campaign {
+  id         String         @id @default(cuid())
+  userId     String
+  title      String
+  type       CampaignType
+  releaseDate DateTime
+  preSaveUrl String?
+  goal       String?        @db.Text
+  status     CampaignStatus @default(DRAFT)
+  generatedBy String?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  suggestions Suggestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, releaseDate])
 }

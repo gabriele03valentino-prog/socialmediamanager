@@ -1,14 +1,31 @@
-import type { Suggestion } from "@prisma/client";
+import type { NeuroScore, Suggestion } from "@prisma/client";
+import {
+  type NeuroBreakdown,
+  type NeuroScoreData,
+  NeuroScoreSection,
+} from "@/components/NeuroScoreSection";
 import { SuggestionActions } from "@/components/SuggestionActions";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
 export function SuggestionCard({
   s,
+  neuroScore = null,
   showActions = false,
+  showNeuro = true,
 }: {
   s: Suggestion;
+  neuroScore?: NeuroScore | null;
   showActions?: boolean;
+  showNeuro?: boolean;
 }) {
+  const neuroData: NeuroScoreData | null = neuroScore
+    ? {
+        score: neuroScore.score,
+        breakdown: neuroScore.breakdown as unknown as NeuroBreakdown,
+        improvements: neuroScore.improvements as unknown as string[],
+      }
+    : null;
+
   return (
     <article className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <header className="mb-2 flex items-center justify-between text-xs text-neutral-500">
@@ -39,6 +56,9 @@ export function SuggestionCard({
         <p className="mt-3 border-t border-neutral-100 pt-2 text-xs text-neutral-500 dark:border-neutral-800">
           <span className="font-medium">Perché:</span> {s.rationale}
         </p>
+      ) : null}
+      {showNeuro ? (
+        <NeuroScoreSection target="suggestion" id={s.id} initial={neuroData} />
       ) : null}
       {showActions && s.status === "PROPOSED" ? <SuggestionActions id={s.id} /> : null}
     </article>
