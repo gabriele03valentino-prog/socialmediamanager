@@ -42,6 +42,13 @@ export async function GET(
     return NextResponse.redirect(`${origin}/api/connect/tiktok/start`);
   }
 
+  // Spotify: non serve OAuth lato utente, l'utente incolla l'URL artista in
+  // una pagina dedicata.
+  if (platform === "SPOTIFY") {
+    const origin = new URL(req.url).origin;
+    return NextResponse.redirect(`${origin}/impostazioni/spotify`);
+  }
+
   return NextResponse.json(
     {
       ok: false,

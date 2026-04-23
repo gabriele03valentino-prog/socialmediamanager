@@ -54,6 +54,11 @@ export default async function SettingsPage({
           ✅ TikTok collegato: <strong>@{sp.handle}</strong>.
         </div>
       ) : null}
+      {sp.connected === "spotify" ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100">
+          ✅ Spotify collegato: artista <strong>{sp.artist}</strong>.
+        </div>
+      ) : null}
       {sp.error ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-100">
           ❌ Errore OAuth: <code>{sp.error}</code>

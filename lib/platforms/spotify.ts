@@ -1,38 +1,50 @@
-import { NotImplementedYet, type PlatformAdapter } from "./adapter";
+// Spotify adapter. Schema SocialAccount:
+//   externalId  = artist id Spotify (22 char)
+//   meta        = { artistName, popularity, genres[], topTracks[], latestRelease? }
+// accessTokenEnc non è usato per questa piattaforma (client credentials
+// globale via getAppToken), ma il campo è obbligatorio nello schema: store "".
 
-// Spotify — solo Web API pubblica. LIMITAZIONE IMPORTANTE:
-// gli "ascoltatori mensili" e gli stream NON sono esposti via API pubblica.
-// Spotify for Artists API non è pubblica. Quindi qui pescheremo:
-//   - follower artista
-//   - popolarità (0-100)
-//   - top tracks, album, uscite recenti
-// L'utente aggiornerà MANUALMENTE gli ascoltatori mensili dall'UI
-// (campo in ArtistProfile.goals o modello dedicato in una milestone successiva).
-//
-// Milestone: M4.
-//
-// OAuth Client Credentials basterebbe per dati pubblici, ma usiamo Authorization
-// Code per poter estendere facilmente in futuro (user-follow-read ecc.).
-//
-// Endpoints:
-//  - GET https://api.spotify.com/v1/artists/{id}       → followers.total, popularity, genres
-//  - GET https://api.spotify.com/v1/artists/{id}/top-tracks?market=IT
-//  - GET https://api.spotify.com/v1/artists/{id}/albums?limit=10&include_groups=album,single
+import type { PlatformAdapter, PostResult } from "./adapter";
+import {
+  fetchArtist,
+  fetchArtistReleases,
+  fetchArtistTopTracks,
+} from "./spotify-oauth";
 
 export const spotifyAdapter: PlatformAdapter = {
   platform: "SPOTIFY",
 
-  async syncMetrics() {
-    throw new NotImplementedYet("SPOTIFY", "syncMetrics");
+  async syncMetrics(account) {
+    const artist = await fetchArtist(account.externalId);
+    const topTracks = await fetchArtistTopTracks(account.externalId);
+    return {
+      followers: artist.followers.total,
+      // Popolarità 0-100 di Spotify, buona come proxy di trending.
+      extra: {
+        popularity: artist.popularity,
+        genres: artist.genres,
+        topTracksPopularity: topTracks.map((t) => t.popularity),
+        // ⚠️ Gli ascoltatori mensili NON sono esposti dall'API pubblica.
+        // L'utente li aggiorna manualmente da /impostazioni/spotify.
+      },
+    };
   },
 
-  async syncRecentPosts() {
-    // Per Spotify "post" = "uscite" (album/single). Mappiamo albums → Post.
-    throw new NotImplementedYet("SPOTIFY", "syncRecentPosts");
+  async syncRecentPosts(account) {
+    const releases = await fetchArtistReleases(account.externalId);
+    const posts: PostResult[] = releases.map((r) => ({
+      externalId: r.id,
+      postedAt: new Date(r.release_date),
+      // In Spotify il "post" è l'uscita discografica → mappiamo in POST.
+      mediaType: "OTHER" as const,
+      caption: `${r.album_type === "single" ? "Single" : "Album"}: ${r.name} (${r.total_tracks} tracce)`,
+      permalink: r.external_urls?.spotify,
+    }));
+    return posts;
   },
 
   async syncAudience() {
-    // Non disponibile via Web API. Sempre null.
+    // Non disponibile su Web API pubblica.
     return null;
   },
 };

@@ -141,10 +141,15 @@ Tutte gratis. Fai una app alla volta secondo quale connettore vuoi usare prima.
    produzione serve review (non necessaria per uso personale).
 6. Client Key / Secret → env `TIKTOK_CLIENT_KEY` / `TIKTOK_CLIENT_SECRET`.
 
-#### Spotify
+#### Spotify — ✅ M4 implementato
 1. <https://developer.spotify.com/dashboard> → crea app.
-2. Redirect URI: `https://<dominio>/api/connect/spotify/callback`.
-3. Client ID/secret → env.
+2. Redirect URI: non serve (usiamo Client Credentials, nessun OAuth utente).
+3. Client ID/secret → env `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`.
+4. Connettiti dall'app: Impostazioni → Connetti Spotify → incolla l'URL del
+   tuo profilo artista (es. <https://open.spotify.com/artist/…>).
+5. Gli **ascoltatori mensili** non sono esposti dall'API pubblica: aggiornali
+   a mano in Impostazioni → Spotify (serve un valore a settimana dall'app
+   Spotify for Artists → Home → Ascoltatori mensili).
 
 ## Deploy su Vercel
 
@@ -185,7 +190,7 @@ stub nei connettori social).
 - [x] **M1** — Connettore Meta (IG + FB) full (OAuth + sync metriche/post/audience)
 - [x] **M2** — Connettore YouTube (Data API v3 + Analytics API, auto-refresh token)
 - [x] **M3** — Connettore TikTok (user info + video list, auto-refresh token)
-- [ ] **M4** — Connettore Spotify + input manuale monthly listeners
+- [x] **M4** — Connettore Spotify (public artist data + input manuale monthly listeners)
 - [ ] **M5** — Dashboard evoluta (grafici, delta, best post)
 - [ ] **M6** — Recommender Claude + UI suggestion (base già in M0)
 - [ ] **M7** — Calendario FullCalendar drag&drop + editor bozze
