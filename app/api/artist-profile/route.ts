@@ -19,6 +19,7 @@ const Body = z.object({
     .or(z.literal("")),
   targetFollowersIG: z.coerce.number().int().nonnegative().optional(),
   targetByDate: z.string().optional().or(z.literal("")),
+  targetAvgTiktokViews: z.coerce.number().int().nonnegative().optional(),
 });
 
 export async function POST(req: Request) {
@@ -42,10 +43,13 @@ export async function POST(req: Request) {
   }
 
   const goals =
-    parsed.data.targetFollowersIG || parsed.data.targetByDate
+    parsed.data.targetFollowersIG ||
+    parsed.data.targetByDate ||
+    parsed.data.targetAvgTiktokViews
       ? {
           targetFollowersIG: parsed.data.targetFollowersIG ?? null,
           targetByDate: parsed.data.targetByDate || null,
+          targetAvgTiktokViews: parsed.data.targetAvgTiktokViews ?? null,
         }
       : undefined;
 

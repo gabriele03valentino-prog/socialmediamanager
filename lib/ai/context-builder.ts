@@ -11,12 +11,15 @@ export interface AccountSummary {
   followers?: number;
   followersDelta7d?: number;
   followersDelta30d?: number;
+  // Solo per TIKTOK: media views sugli ultimi N video sincronizzati.
+  avgViewsLast20?: number;
   topPosts?: Array<{
     postedAt: string;
     mediaType: string;
     likes?: number | null;
     comments?: number | null;
     reach?: number | null;
+    views?: number | null;
     caption?: string | null;
   }>;
   audience?: {
@@ -51,7 +54,9 @@ export async function buildContext(userId: string): Promise<RecommenderContext> 
       socialAccounts: {
         include: {
           metrics: { orderBy: { capturedAt: "desc" }, take: 30 },
-          posts: { orderBy: { postedAt: "desc" }, take: 10 },
+          // Per TikTok ci servono 20 video per calcolare la media views;
+          // per le altre 10 bastano.
+          posts: { orderBy: { postedAt: "desc" }, take: 20 },
           audienceInsights: { orderBy: { capturedAt: "desc" }, take: 1 },
         },
       },
@@ -78,9 +83,15 @@ export async function buildContext(userId: string): Promise<RecommenderContext> 
         likes: p.likes,
         comments: p.comments,
         reach: p.reach,
+        views: p.views,
         caption: p.caption?.slice(0, 220) ?? null,
       }));
     const latestAudience = a.audienceInsights[0];
+
+    const avgViewsLast20 =
+      a.platform === "TIKTOK"
+        ? averageDefined(a.posts.map((p) => p.views ?? null))
+        : undefined;
 
     return {
       platform: a.platform,
@@ -89,6 +100,7 @@ export async function buildContext(userId: string): Promise<RecommenderContext> 
       followers: latest?.followers ?? undefined,
       followersDelta7d: delta7,
       followersDelta30d: delta30,
+      avgViewsLast20,
       topPosts,
       audience: latestAudience
         ? {
@@ -127,6 +139,12 @@ function engagement(p: {
   saves: number | null;
 }): number {
   return (p.likes ?? 0) + (p.comments ?? 0) * 2 + (p.shares ?? 0) * 3 + (p.saves ?? 0) * 2;
+}
+
+function averageDefined(values: Array<number | null>): number | undefined {
+  const defined = values.filter((v): v is number => v !== null && v !== undefined);
+  if (defined.length === 0) return undefined;
+  return Math.round(defined.reduce((s, v) => s + v, 0) / defined.length);
 }
 
 function diffFollowers(

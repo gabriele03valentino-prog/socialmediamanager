@@ -29,6 +29,7 @@ export default async function ProfiloPage() {
   const goals = (profile?.goals ?? {}) as {
     targetFollowersIG?: number;
     targetByDate?: string;
+    targetAvgTiktokViews?: number;
   };
 
   return (
@@ -112,7 +113,7 @@ export default async function ProfiloPage() {
         </div>
 
         <fieldset className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-          <legend className="px-1 text-sm font-medium">Obiettivo (opzionale)</legend>
+          <legend className="px-1 text-sm font-medium">Obiettivi (opzionali)</legend>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-neutral-500">
@@ -135,6 +136,23 @@ export default async function ProfiloPage() {
                 defaultValue={goals.targetByDate ?? ""}
                 className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
               />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs text-neutral-500">
+                Views medie per video TikTok da raggiungere
+              </label>
+              <input
+                name="targetAvgTiktokViews"
+                type="number"
+                min={0}
+                defaultValue={goals.targetAvgTiktokViews ?? ""}
+                placeholder="es. 5000"
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+              />
+              <p className="mt-1 text-[11px] text-neutral-400">
+                Usato dal recommender: se lontano dal target, spinge formati
+                ottimizzati per retention (hook 1s, loop, pattern interrupt).
+              </p>
             </div>
           </div>
         </fieldset>

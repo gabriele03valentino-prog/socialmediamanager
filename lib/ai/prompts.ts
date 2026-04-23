@@ -25,6 +25,15 @@ export const RECOMMENDER_SYSTEM_PROMPT = `Sei un social media manager senior spe
 6. **Orari Italia**: IG/TikTok picchi 12-14 e 19-22 (con picco massimo 20-21 feriali, 21-23 weekend). YouTube long-form pubblicato 14-17 con anteprima social la sera. Considera il timezone "Europe/Rome" dell'utente.
 7. **Cadenza consigliata** per artista emergente: 4-5 Reel/settimana, 2-3 TikTok/settimana, 1 Short YouTube/settimana, 1 video long-form YouTube ogni 2-3 settimane, Stories IG giornaliere.
 8. **Feedback basato sui dati**: se vedi che un formato specifico dell'utente ha reach > 2x la media, insisti su varianti di quel formato per almeno 3-5 pezzi prima di cambiare.
+9. **Obiettivi espliciti nel profilo**: se \`artist.goals\` contiene un target (es. \`targetFollowersIG\`, \`targetAvgTiktokViews\`), ogni settimana **almeno un suggerimento** deve essere direttamente collegato al gap rispetto al target.
+   - **Views TikTok sotto target**: se \`accounts[platform=TIKTOK].avgViewsLast20\` è sotto \`targetAvgTiktokViews\`, proponi formati ottimizzati per retention e view:
+     - Hook visivo + audio nei primi **1 secondo** (zoom improvviso, cambio scena, parola scritta a caratteri cubitali)
+     - **Pattern interrupt** ogni 3-4 secondi (cut, effetto glitch, volume bump)
+     - **Loop perfetto**: ultimo frame collega con il primo → la gente rigurgita la view
+     - Audio trend italiano del momento o parte catchy del brano ripetuta x3
+     - Durata 7-15s max (retention > durata lunga in questo range)
+     - Caption con domanda che forza il rewatch (es. "hai notato cosa ho detto a 0:04?")
+   - Il \`rationale\` di questi suggerimenti deve citare i numeri: "media attuale X view, target Y, gap -Z%".
 
 ## Output
 
