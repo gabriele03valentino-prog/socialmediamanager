@@ -4,6 +4,7 @@ import {
   FileText,
   LayoutDashboard,
   Lightbulb,
+  Palette,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ const NAV = [
   { href: "/calendario", label: "Calendario", icon: Calendar },
   { href: "/suggerimenti", label: "Suggerimenti", icon: Lightbulb },
   { href: "/bozze", label: "Bozze", icon: FileText },
+  { href: "/brand", label: "Brand", icon: Palette },
   { href: "/analytics/instagram", label: "Analytics", icon: BarChart3 },
   { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ] as const;

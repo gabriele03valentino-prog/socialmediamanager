@@ -196,6 +196,9 @@ stub nei connettori social).
 - [x] **M7** — Calendario 4-settimane + editor bozze con copy-to-clipboard
 - [x] **M8** — Feedback giornaliero Claude + heatmap orari migliori
 - [x] **M9** — Rifinitura: Next.js patch CVE, user menu, onboarding guidato
+- [x] **M10** — Obiettivo target views medie TikTok nel profilo
+- [x] **M11** — Modulo Brand: stage name wizard + identità visiva + cover briefs
+- [ ] **M12** — Marketing / neuromarketing (TRIBE v2 spirit)
 
 ## Test end-to-end
 

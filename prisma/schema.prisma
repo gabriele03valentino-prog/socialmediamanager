@@ -27,6 +27,8 @@ model User {
   socialAccounts SocialAccount[]
   suggestions    Suggestion[]
   drafts         Draft[]
+  brandIdentity  BrandIdentity?
+  stageNameIdeas StageNameIdea[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,6 +85,42 @@ model ArtistProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Modulo Brand (M11): identità visiva generata da Claude.
+model BrandIdentity {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  palette      Json? // [{ hex, role, usage }, ...]
+  typography   Json? // { title: {family, weights, rationale}, body: {...} }
+  toneOfVoice  Json? // { adjectives: [...], examples: [...] }
+  moodKeywords String[] // es. ["notturno", "underground", "analogico"]
+  logoBrief    String?  @db.Text
+  logoSvg      String?  @db.Text // SVG inline generato da Claude
+  claudeDesignPrompt String? @db.Text
+  mjPrompt     String?  @db.Text
+  coverBriefs  Json?   // [{ title, brief, claudeDesignPrompt, mjPrompt, ideogramPrompt }]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Proposte nome d'arte dal wizard + cache delle check disponibilità handle.
+model StageNameIdea {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  rationale    String   @db.Text
+  availability Json? // { instagram: "free"|"taken"|"unknown", tiktok: "...", spotify: "..." }
+  chosen       Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // Feedback giornaliero prodotto dal cron serale. Un record per user+data.
