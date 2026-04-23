@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import type { Platform } from "@prisma/client";
 import { auth } from "@/auth";
 
-// Stub comune di avvio OAuth social. Ciascuna piattaforma verrà implementata nei
-// milestone M1-M4 restituendo una redirect all'URL di authorize corretto.
-
 const VALID: Record<string, Platform> = {
   instagram: "INSTAGRAM",
   facebook: "FACEBOOK",
@@ -14,7 +11,7 @@ const VALID: Record<string, Platform> = {
 };
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ platform: string }> },
 ) {
   const session = await auth();
@@ -26,6 +23,13 @@ export async function GET(
   if (!platform) {
     return NextResponse.json({ error: "unknown platform" }, { status: 404 });
   }
+
+  // IG e FB condividono lo stesso flusso OAuth Meta.
+  if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
+    const origin = new URL(req.url).origin;
+    return NextResponse.redirect(`${origin}/api/connect/meta/start`);
+  }
+
   return NextResponse.json(
     {
       ok: false,

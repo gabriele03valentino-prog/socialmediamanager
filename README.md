@@ -104,14 +104,21 @@ Tutte gratis. Fai una app alla volta secondo quale connettore vuoi usare prima.
 5. Abilita **YouTube Data API v3** e **YouTube Analytics API**.
 6. Il login all'app ora funziona; YouTube verrà collegato in M2.
 
-#### Meta (Instagram + Facebook)
-1. <https://developers.facebook.com> → crea app tipo "Business".
-2. Aggiungi prodotto **Instagram Graph API** + **Facebook Login for Business**.
-3. In OAuth Redirect URIs metti `https://<dominio>/api/connect/instagram/callback`.
-4. In dev mode puoi usarla solo con i tuoi account collegati come tester → **non
-   serve review**.
-5. Collega il tuo IG a una Pagina FB, tipo account IG "Business" o "Creator".
-6. `META_CLIENT_ID` / `META_CLIENT_SECRET` in env.
+#### Meta (Instagram + Facebook) — ✅ M1 implementato
+1. <https://developers.facebook.com/apps/create/> → tipo **Business**.
+2. Aggiungi prodotto **Instagram** (Instagram Graph API, non Basic Display) +
+   **Facebook Login for Business**.
+3. In **Facebook Login for Business → Settings** imposta Valid OAuth Redirect URIs:
+   - `http://localhost:3000/api/connect/meta/callback`
+   - `https://<tuo-dominio>/api/connect/meta/callback`
+4. In dev mode aggiungiti come tester (App Roles → Roles → Add People) — così puoi
+   usare l'app senza review.
+5. Il tuo IG deve essere **Business** o **Creator** e collegato a una Pagina FB
+   (Impostazioni IG → Account → Passa ad account professionale).
+6. Copia App ID / App Secret in `.env` come `META_CLIENT_ID` / `META_CLIENT_SECRET`.
+7. Nel tab **Impostazioni** dell'app clicca "Connetti" su Instagram o Facebook: il
+   flusso Meta crea un SocialAccount FACEBOOK per ogni Pagina e un INSTAGRAM per
+   ogni Pagina che ha un IG Business collegato.
 
 #### TikTok
 1. <https://developers.tiktok.com> → registra app.
@@ -161,7 +168,7 @@ Questa release è **M0** (scaffolding completo e funzionante end-to-end con
 stub nei connettori social).
 
 - [x] **M0** — Scaffold Next.js + Prisma + Auth + UI + recommender Claude + cron
-- [ ] **M1** — Connettore Meta (IG + FB) full
+- [x] **M1** — Connettore Meta (IG + FB) full (OAuth + sync metriche/post/audience)
 - [ ] **M2** — Connettore YouTube (Data + Analytics)
 - [ ] **M3** — Connettore TikTok
 - [ ] **M4** — Connettore Spotify + input manuale monthly listeners

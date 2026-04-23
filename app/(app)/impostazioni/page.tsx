@@ -7,16 +7,23 @@ export const dynamic = "force-dynamic";
 
 const PLATFORMS: Platform[] = ["INSTAGRAM", "FACEBOOK", "TIKTOK", "YOUTUBE", "SPOTIFY"];
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await auth();
   if (!session?.user?.id) return null;
+
+  const sp = await searchParams;
 
   const [profile, accounts] = await Promise.all([
     prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
     prisma.socialAccount.findMany({ where: { userId: session.user.id } }),
   ]);
 
-  const byPlatform = new Map(accounts.map((a) => [a.platform, a] as const));
+  const byPlatform = new Map<Platform, (typeof accounts)[number]>();
+  for (const a of accounts) byPlatform.set(a.platform, a);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -27,6 +34,22 @@ export default async function SettingsPage() {
           suggerimenti.
         </p>
       </header>
+
+      {sp.connected === "meta" ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100">
+          ✅ Meta collegato: {sp.pages} Pagine Facebook,{" "}
+          {sp.instagram && Number(sp.instagram) > 0
+            ? `${sp.instagram} profilo Instagram Business`
+            : "nessun IG Business (collegane uno alla Pagina e riprova)"}
+          .
+        </div>
+      ) : null}
+      {sp.error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-100">
+          ❌ Errore OAuth: <code>{sp.error}</code>
+          {sp.message ? <> — {sp.message}</> : null}
+        </div>
+      ) : null}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -73,8 +96,8 @@ export default async function SettingsPage() {
           })}
         </div>
         <p className="mt-3 text-xs text-neutral-500">
-          Nota: i flussi OAuth specifici (Meta/TikTok/YouTube/Spotify) vengono
-          implementati nei milestone M1-M4. Per ora la pagina mostra solo lo stato.
+          Instagram e Facebook si connettono con lo stesso flusso Meta. TikTok,
+          YouTube e Spotify arrivano nei milestone M2-M4.
         </p>
       </section>
     </div>
