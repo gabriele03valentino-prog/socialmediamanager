@@ -1,5 +1,6 @@
 import type { Platform } from "@prisma/client";
 import { auth } from "@/auth";
+import { BestTimeHeatmap, type HeatCell } from "@/components/BestTimeHeatmap";
 import { type FollowerSeries, FollowerChart } from "@/components/FollowerChart";
 import { KpiCard } from "@/components/KpiCard";
 import { SuggestionCard } from "@/components/SuggestionCard";
@@ -51,10 +52,16 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const nextSuggestion = await prisma.suggestion.findFirst({
-    where: { userId, status: "PROPOSED" },
-    orderBy: { forDate: "asc" },
-  });
+  const [nextSuggestion, latestFeedback] = await Promise.all([
+    prisma.suggestion.findFirst({
+      where: { userId, status: "PROPOSED" },
+      orderBy: { forDate: "asc" },
+    }),
+    prisma.dailyFeedback.findFirst({
+      where: { userId },
+      orderBy: { forDate: "desc" },
+    }),
+  ]);
 
   const byPlatform = new Map(accounts.map((a) => [a.platform, a] as const));
 
@@ -88,6 +95,35 @@ export default async function DashboardPage() {
         followers: m.followers ?? null,
       })),
     }));
+
+  // Heatmap best time: media engagement per (giorno-settimana, ora)
+  const bucketAgg = new Map<string, { sum: number; count: number }>();
+  for (const p of recentPosts) {
+    const d = p.postedAt;
+    const dow = (d.getUTCDay() + 6) % 7; // lun=0
+    const hour = d.getUTCHours();
+    const key = `${dow}-${hour}`;
+    const eng = engagementOf(p);
+    const cur = bucketAgg.get(key) ?? { sum: 0, count: 0 };
+    bucketAgg.set(key, { sum: cur.sum + eng, count: cur.count + 1 });
+  }
+  const avgByBucket: Array<{ dow: number; hour: number; avg: number; count: number }> = [];
+  for (const [key, v] of bucketAgg) {
+    const [dow, hour] = key.split("-").map(Number);
+    avgByBucket.push({
+      dow: dow ?? 0,
+      hour: hour ?? 0,
+      avg: v.sum / v.count,
+      count: v.count,
+    });
+  }
+  const maxAvg = avgByBucket.reduce((m, b) => Math.max(m, b.avg), 0) || 1;
+  const heatCells: HeatCell[] = avgByBucket.map((b) => ({
+    dow: b.dow,
+    hour: b.hour,
+    count: b.count,
+    score: b.avg / maxAvg,
+  }));
 
   // Top 5 post per engagement
   const topPosts: TopPostItem[] = recentPosts
@@ -137,9 +173,33 @@ export default async function DashboardPage() {
         })}
       </section>
 
+      {latestFeedback ? (
+        <section className="rounded-xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-700/40 dark:bg-brand-700/10">
+          <div className="text-xs uppercase tracking-wide text-brand-700 dark:text-brand-200">
+            Feedback del{" "}
+            {latestFeedback.forDate.toLocaleDateString("it-IT", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </div>
+          <h2 className="mt-1 text-lg font-semibold text-brand-900 dark:text-brand-100">
+            {latestFeedback.headline}
+          </h2>
+          <p className="mt-2 text-sm text-brand-900 dark:text-brand-100">
+            {latestFeedback.body}
+          </p>
+        </section>
+      ) : null}
+
       <section>
         <h2 className="mb-3 text-lg font-semibold">Andamento follower (30g)</h2>
         <FollowerChart series={series} />
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">Orari migliori (ultimi 30g)</h2>
+        <BestTimeHeatmap cells={heatCells} />
       </section>
 
       <section className="grid gap-6 md:grid-cols-5">

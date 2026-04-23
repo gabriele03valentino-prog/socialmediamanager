@@ -85,6 +85,22 @@ model ArtistProfile {
   updatedAt DateTime @updatedAt
 }
 
+// Feedback giornaliero prodotto dal cron serale. Un record per user+data.
+model DailyFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  forDate   DateTime // giorno a cui si riferisce (ore 00:00)
+  headline  String   @db.Text
+  body      String   @db.Text
+  postsCount Int     @default(0)
+  generatedBy String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, forDate])
+  @@index([userId, forDate])
+}
+
 enum Platform {
   INSTAGRAM
   FACEBOOK

@@ -1,34 +1,60 @@
 import { NextResponse } from "next/server";
+import { generateDailyFeedback } from "@/lib/ai/feedback";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 function authorized(req: Request): boolean {
   return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
 }
 
-// Analizza i post pubblicati oggi e produce un breve feedback in log.
-// Milestone M8 → scriverà un record di Feedback dedicato e invierà email via Resend.
 export async function GET(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const since = new Date();
-  since.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const todaysPosts = await prisma.post.findMany({
-    where: { postedAt: { gte: since } },
-    include: { account: true },
-  });
+  const users = await prisma.user.findMany({ select: { id: true } });
+  const report: Array<{ userId: string; written: boolean; error?: string }> = [];
 
-  const summary = todaysPosts.map((p) => ({
-    platform: p.account.platform,
-    postedAt: p.postedAt,
-    engagement: (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0),
-    reach: p.reach ?? null,
-  }));
+  for (const user of users) {
+    try {
+      const feedback = await generateDailyFeedback(user.id, today);
+      if (!feedback) {
+        report.push({ userId: user.id, written: false });
+        continue;
+      }
+      await prisma.dailyFeedback.upsert({
+        where: {
+          userId_forDate: { userId: user.id, forDate: today },
+        },
+        create: {
+          userId: user.id,
+          forDate: today,
+          headline: feedback.headline,
+          body: feedback.body,
+          postsCount: feedback.postsCount,
+          generatedBy: "claude-sonnet-4-6",
+        },
+        update: {
+          headline: feedback.headline,
+          body: feedback.body,
+          postsCount: feedback.postsCount,
+        },
+      });
+      report.push({ userId: user.id, written: true });
+    } catch (err) {
+      report.push({
+        userId: user.id,
+        written: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
-  return NextResponse.json({ ok: true, count: todaysPosts.length, summary });
+  return NextResponse.json({ ok: true, at: new Date().toISOString(), report });
 }
