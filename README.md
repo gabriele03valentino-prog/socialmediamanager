@@ -191,8 +191,8 @@ stub nei connettori social).
 - [x] **M2** — Connettore YouTube (Data API v3 + Analytics API, auto-refresh token)
 - [x] **M3** — Connettore TikTok (user info + video list, auto-refresh token)
 - [x] **M4** — Connettore Spotify (public artist data + input manuale monthly listeners)
-- [ ] **M5** — Dashboard evoluta (grafici, delta, best post)
-- [ ] **M6** — Recommender Claude + UI suggestion (base già in M0)
+- [x] **M5** — Dashboard evoluta (grafici, delta, best post)
+- [x] **M6** — Recommender Claude + UI suggestion + profilo artista + accept/reject
 - [ ] **M7** — Calendario FullCalendar drag&drop + editor bozze
 - [ ] **M8** — Feedback serale + email (Resend) + heatmap best time
 - [ ] **M9** — Rifinitura, export bozze, notifiche push

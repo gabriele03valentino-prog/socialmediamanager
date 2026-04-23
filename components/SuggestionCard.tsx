@@ -1,7 +1,14 @@
 import type { Suggestion } from "@prisma/client";
+import { SuggestionActions } from "@/components/SuggestionActions";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
-export function SuggestionCard({ s }: { s: Suggestion }) {
+export function SuggestionCard({
+  s,
+  showActions = false,
+}: {
+  s: Suggestion;
+  showActions?: boolean;
+}) {
   return (
     <article className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <header className="mb-2 flex items-center justify-between text-xs text-neutral-500">
@@ -33,6 +40,7 @@ export function SuggestionCard({ s }: { s: Suggestion }) {
           <span className="font-medium">Perché:</span> {s.rationale}
         </p>
       ) : null}
+      {showActions && s.status === "PROPOSED" ? <SuggestionActions id={s.id} /> : null}
     </article>
   );
 }

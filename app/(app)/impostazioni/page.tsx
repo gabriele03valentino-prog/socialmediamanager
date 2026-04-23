@@ -72,28 +72,47 @@ export default async function SettingsPage({
         </div>
       ) : null}
 
+      {sp.profile === "saved" ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100">
+          ✅ Profilo artista salvato.
+        </div>
+      ) : null}
+
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Profilo artista
         </h2>
         <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900">
           {profile ? (
-            <dl className="grid grid-cols-2 gap-y-2">
-              <dt className="text-neutral-500">Stage name</dt>
-              <dd>{profile.stageName}</dd>
-              <dt className="text-neutral-500">Genere</dt>
-              <dd>{profile.genre}</dd>
-              {profile.city && (
-                <>
-                  <dt className="text-neutral-500">Città</dt>
-                  <dd>{profile.city}</dd>
-                </>
-              )}
-            </dl>
+            <>
+              <dl className="grid grid-cols-2 gap-y-2">
+                <dt className="text-neutral-500">Stage name</dt>
+                <dd>{profile.stageName}</dd>
+                <dt className="text-neutral-500">Genere</dt>
+                <dd>{profile.genre}</dd>
+                {profile.city && (
+                  <>
+                    <dt className="text-neutral-500">Città</dt>
+                    <dd>{profile.city}</dd>
+                  </>
+                )}
+              </dl>
+              <a
+                href="/impostazioni/profilo"
+                className="mt-3 inline-block text-sm text-brand-600 hover:underline"
+              >
+                Modifica →
+              </a>
+            </>
           ) : (
-            <p className="text-neutral-500">
-              Nessun profilo creato. (L'editor profilo arriva in una milestone
-              successiva; per ora popola a mano via Prisma Studio.)
+            <p>
+              Nessun profilo creato.{" "}
+              <a
+                href="/impostazioni/profilo"
+                className="text-brand-600 hover:underline"
+              >
+                Compila ora →
+              </a>
             </p>
           )}
         </div>
@@ -117,8 +136,11 @@ export default async function SettingsPage({
           })}
         </div>
         <p className="mt-3 text-xs text-neutral-500">
-          Instagram e Facebook si connettono con lo stesso flusso Meta. TikTok,
-          YouTube e Spotify arrivano nei milestone M2-M4.
+          Instagram + Facebook condividono il flusso Meta. Spotify ha una{" "}
+          <a href="/impostazioni/spotify" className="text-brand-600 underline">
+            pagina dedicata
+          </a>{" "}
+          per incollare l'URL artista e aggiornare gli ascoltatori mensili.
         </p>
       </section>
     </div>
