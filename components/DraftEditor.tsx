@@ -27,6 +27,9 @@ export function DraftEditor({ draft }: { draft: Draft }) {
   );
   const [mediaNotes, setMediaNotes] = useState(draft.mediaNotes ?? "");
   const [copyMsg, setCopyMsg] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(
+    null,
+  );
 
   const fullText = `${caption}\n\n${hashtagsText}`.trim();
 
@@ -42,6 +45,7 @@ export function DraftEditor({ draft }: { draft: Draft }) {
 
   async function save() {
     setSaving(true);
+    setSaveMsg(null);
     try {
       const payload = {
         caption,
@@ -58,7 +62,22 @@ export function DraftEditor({ draft }: { draft: Draft }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) startTransition(() => router.refresh());
+      if (res.ok) {
+        setSaveMsg({ kind: "ok", text: "salvato ✓" });
+        setTimeout(() => setSaveMsg(null), 2000);
+        startTransition(() => router.refresh());
+      } else {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        setSaveMsg({
+          kind: "err",
+          text: json.error ?? `errore ${res.status}`,
+        });
+      }
+    } catch (err) {
+      setSaveMsg({
+        kind: "err",
+        text: err instanceof Error ? err.message : "errore di rete",
+      });
     } finally {
       setSaving(false);
     }
@@ -67,9 +86,23 @@ export function DraftEditor({ draft }: { draft: Draft }) {
   async function del() {
     if (!confirm("Eliminare definitivamente questa bozza?")) return;
     setDeleting(true);
+    setSaveMsg(null);
     try {
       const res = await fetch(`/api/drafts/${draft.id}`, { method: "DELETE" });
-      if (res.ok) router.push("/bozze");
+      if (res.ok) {
+        router.push("/bozze");
+        return;
+      }
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      setSaveMsg({
+        kind: "err",
+        text: json.error ?? `errore ${res.status}`,
+      });
+    } catch (err) {
+      setSaveMsg({
+        kind: "err",
+        text: err instanceof Error ? err.message : "errore di rete",
+      });
     } finally {
       setDeleting(false);
     }
@@ -157,6 +190,15 @@ export function DraftEditor({ draft }: { draft: Draft }) {
         >
           {saving ? "Salvo…" : "Salva"}
         </button>
+        {saveMsg ? (
+          <span
+            className={
+              saveMsg.kind === "ok" ? "text-xs text-emerald-600" : "text-xs text-rose-600"
+            }
+          >
+            {saveMsg.text}
+          </span>
+        ) : null}
         <button
           onClick={copyAll}
           type="button"

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import type { HandleStatus } from "@/lib/handle-check";
+import { type HandleStatus, manualCheckUrl } from "@/lib/handle-check";
 
 interface Idea {
   id: string;
@@ -28,6 +28,10 @@ const STATUS_CHIP: Record<HandleStatus, { label: string; cls: string }> = {
   unknown: {
     label: "da verificare",
     cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
+  },
+  manual: {
+    label: "verifica ↗",
+    cls: "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/40 dark:text-sky-200",
   },
 };
 
@@ -198,12 +202,27 @@ export function StageNameWizard({
                     {(["instagram", "tiktok", "spotify"] as const).map((p) => {
                       const s = idea.availability![p];
                       const chip = STATUS_CHIP[s];
+                      const label = `${p.toUpperCase()} · ${chip.label}`;
+                      if (s === "manual" && (p === "instagram" || p === "tiktok")) {
+                        return (
+                          <a
+                            key={p}
+                            href={manualCheckUrl(p, idea.name)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`rounded px-1.5 py-0.5 transition-colors ${chip.cls}`}
+                            title={`Apri ${p} per verificare`}
+                          >
+                            {label}
+                          </a>
+                        );
+                      }
                       return (
                         <span
                           key={p}
                           className={`rounded px-1.5 py-0.5 ${chip.cls}`}
                         >
-                          {p.toUpperCase()} · {chip.label}
+                          {label}
                         </span>
                       );
                     })}

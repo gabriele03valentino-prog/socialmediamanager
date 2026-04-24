@@ -1,11 +1,19 @@
-// Best-effort handle availability check.
-// Usa probe HTTP "pubblici" senza OAuth. NON è 100% affidabile perché le
-// piattaforme cambiano risposta in base a bot detection / login wall;
-// aggreghiamo quindi la heuristica con uno stato "unknown".
+// Handle availability check.
+//
+// Instagram e TikTok bloccano aggressivamente lo scrape via HTTP (rate limit
+// su IP datacenter, WAF, redirect a login wall). Un probe "furbo" con User-Agent
+// browser dà falsi negativi nella maggioranza dei casi in produzione. Per non
+// mentire all'utente con un badge "da verificare" passivo, per IG e TikTok
+// ritorniamo sempre "manual" e la UI mostra un link che apre il profilo in un
+// click — così l'utente ottiene risposta reale in 1 secondo invece che un check
+// automatico fragile.
+//
+// Spotify invece ha Web API ufficiale e Client Credentials flow gratuito → il
+// check "libero/occupato" è affidabile e lo facciamo lato server.
 
 import { spotifyFetch } from "./platforms/spotify-oauth";
 
-export type HandleStatus = "free" | "taken" | "unknown";
+export type HandleStatus = "free" | "taken" | "unknown" | "manual";
 
 export interface HandleCheckResult {
   instagram: HandleStatus;
@@ -13,63 +21,14 @@ export interface HandleCheckResult {
   spotify: HandleStatus;
 }
 
-async function probe(url: string): Promise<number | null> {
-  try {
-    // Instagram e TikTok rifiutano HEAD da alcuni IP → usiamo GET senza seguire redirect lunghi.
-    const res = await fetch(url, {
-      method: "GET",
-      redirect: "manual",
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        accept: "text/html",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
-    });
-    return res.status;
-  } catch {
-    return null;
-  }
-}
-
-function sanitizeHandle(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "")
-    .slice(0, 30);
-}
-
 export async function checkHandle(name: string): Promise<HandleCheckResult> {
-  const handle = sanitizeHandle(name);
-  if (!handle) {
-    return { instagram: "unknown", tiktok: "unknown", spotify: "unknown" };
-  }
-
-  const [igStatus, ttStatus, spotifyStatus] = await Promise.all([
-    probe(`https://www.instagram.com/${handle}/`).then(toIgStatus),
-    probe(`https://www.tiktok.com/@${handle}`).then(toTtStatus),
-    checkSpotifyArtistName(name),
-  ]);
-
+  const spotify = await checkSpotifyArtistName(name);
   return {
-    instagram: igStatus,
-    tiktok: ttStatus,
-    spotify: spotifyStatus,
+    // IG e TikTok richiedono verifica manuale (link in UI).
+    instagram: "manual",
+    tiktok: "manual",
+    spotify,
   };
-}
-
-function toIgStatus(code: number | null): HandleStatus {
-  // 200 = profilo esiste; 404 = libero; 302/301 a login = "unknown" (IG blocca scrape).
-  if (code === 200) return "taken";
-  if (code === 404) return "free";
-  return "unknown";
-}
-
-function toTtStatus(code: number | null): HandleStatus {
-  if (code === 200) return "taken";
-  if (code === 404) return "free";
-  return "unknown";
 }
 
 async function checkSpotifyArtistName(name: string): Promise<HandleStatus> {
@@ -89,4 +48,18 @@ async function checkSpotifyArtistName(name: string): Promise<HandleStatus> {
   } catch {
     return "unknown";
   }
+}
+
+// URL pubblici per il check manuale dal browser dell'utente.
+// Usati dalla UI per i chip "verifica su IG/TikTok ↗".
+export function manualCheckUrl(
+  platform: "instagram" | "tiktok",
+  name: string,
+): string {
+  const handle = name
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 30);
+  if (platform === "instagram") return `https://www.instagram.com/${handle}/`;
+  return `https://www.tiktok.com/@${handle}`;
 }

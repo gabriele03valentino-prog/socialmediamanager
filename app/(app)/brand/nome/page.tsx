@@ -47,8 +47,10 @@ export default async function StageNamePage() {
       <StageNameWizard initialIdeas={typedIdeas} />
 
       <p className="text-xs text-neutral-500">
-        ℹ️ Il check disponibilità è best-effort: Instagram/TikTok a volte nascondono
-        le info dietro login. Verifica "da verificare" controllando manualmente.
+        ℹ️ Spotify viene verificato automaticamente via API ufficiale. Per
+        Instagram e TikTok clicca direttamente il chip per aprire il profilo in
+        una nuova tab — è il check più affidabile, queste piattaforme bloccano i
+        probe HTTP dai server.
       </p>
     </div>
   );

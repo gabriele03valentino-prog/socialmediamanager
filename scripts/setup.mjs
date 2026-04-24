@@ -162,12 +162,11 @@ async function main() {
     env.META_CLIENT_SECRET ??= "";
   }
 
-  // piattaforme non ancora implementate
+  // Altre piattaforme: lasciate vuote finché non collegate dall'app.
+  // YouTube riusa AUTH_GOOGLE_ID/SECRET, quindi non ha env dedicate.
   for (const k of [
     "TIKTOK_CLIENT_KEY",
     "TIKTOK_CLIENT_SECRET",
-    "YOUTUBE_CLIENT_ID",
-    "YOUTUBE_CLIENT_SECRET",
     "SPOTIFY_CLIENT_ID",
     "SPOTIFY_CLIENT_SECRET",
   ]) {
@@ -189,8 +188,6 @@ async function main() {
     "META_CLIENT_SECRET",
     "TIKTOK_CLIENT_KEY",
     "TIKTOK_CLIENT_SECRET",
-    "YOUTUBE_CLIENT_ID",
-    "YOUTUBE_CLIENT_SECRET",
     "SPOTIFY_CLIENT_ID",
     "SPOTIFY_CLIENT_SECRET",
   ];
