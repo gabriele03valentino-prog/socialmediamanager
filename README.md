@@ -199,6 +199,19 @@ stub nei connettori social).
 - [x] **M10** — Obiettivo target views medie TikTok nel profilo
 - [x] **M11** — Modulo Brand: stage name wizard + identità visiva + cover briefs
 - [x] **M12** — Marketing / neuromarketing: persona, neuro-score, campaign planner
+- [x] **M13** — Fix post-review: DB retry, editor feedback, env cleanup, handle check onesto
+- [x] **M14** — Automazioni: GitHub Action CI + reviewer subagent + Stop hook typecheck
+
+## Automazioni di qualità
+
+- **GitHub Action** (`.github/workflows/ci.yml`): a ogni push o PR lancia
+  `pnpm typecheck` + `pnpm build`. Niente di rotto sfugge.
+- **Reviewer subagent** (`.claude/agents/reviewer.md`): quando vuoi una review
+  veloce basta dire a Claude Code "usa il reviewer" o "rivedi il codice".
+  L'agente conosce già la struttura dell'app.
+- **Stop hook typecheck** (`.claude/settings.json` + `.claude/hooks/`):
+  dopo ogni turno di Claude, in background parte un `pnpm typecheck`.
+  Se qualcosa è rotto, Claude se ne accorge subito e si auto-corregge.
 
 ## Modulo Marketing & TRIBE v2
 

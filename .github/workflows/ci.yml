@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "claude/**"
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Env finte ma formalmente valide. Servono a far partire il build:
+    # Next.js non chiama mai l'encryption a build time, quindi
+    # TOKEN_ENCRYPTION_KEY finto va bene; Prisma genera il client senza
+    # toccare il DB; Claude SDK è lazy-init e non parte senza richiesta.
+    env:
+      DATABASE_URL: "postgresql://x:x@localhost:5432/x"
+      AUTH_SECRET: "ci-placeholder-secret"
+      NEXTAUTH_URL: "http://localhost:3000"
+      AUTH_GOOGLE_ID: "ci-placeholder"
+      AUTH_GOOGLE_SECRET: "ci-placeholder"
+      TOKEN_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      ANTHROPIC_API_KEY: "ci-placeholder"
+      CRON_SECRET: "ci-placeholder"
+      META_CLIENT_ID: ""
+      META_CLIENT_SECRET: ""
+      TIKTOK_CLIENT_KEY: ""
+      TIKTOK_CLIENT_SECRET: ""
+      SPOTIFY_CLIENT_ID: ""
+      SPOTIFY_CLIENT_SECRET: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm prisma generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### CI result" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Typecheck + build clean." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Something broke — see logs above." >> $GITHUB_STEP_SUMMARY
+          fi
