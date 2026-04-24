@@ -69,6 +69,41 @@ export default async function SettingsPage({
               Crea un canale su YouTube e riprova.
             </p>
           ) : null}
+          {sp.error === "no_pages" ? (
+            <div className="mt-3 space-y-2">
+              <p>
+                Il tuo account Facebook non ha nessuna Pagina. Instagram Graph API
+                richiede obbligatoriamente una Pagina FB di riferimento collegata
+                al profilo IG Business/Creator.
+              </p>
+              <p className="font-medium">Come risolvere (5 minuti):</p>
+              <ol className="ml-4 list-decimal space-y-1 text-xs">
+                <li>
+                  Apri{" "}
+                  <a
+                    href="https://www.facebook.com/pages/create"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:no-underline"
+                  >
+                    facebook.com/pages/create ↗
+                  </a>{" "}
+                  e crea una Pagina categoria "Musicista/gruppo" o "Artista".
+                </li>
+                <li>
+                  Sull'app Instagram: Profilo → Modifica profilo → Informazioni
+                  aziendali pubbliche → <strong>Pagina</strong> → collega la
+                  Pagina appena creata.
+                </li>
+                <li>
+                  Verifica che il tuo IG sia <strong>Business</strong> o{" "}
+                  <strong>Creator</strong> (App IG → Impostazioni → Account →
+                  "Passa ad account professionale").
+                </li>
+                <li>Torna qui e clicca di nuovo "Connetti Instagram".</li>
+              </ol>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
