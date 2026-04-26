@@ -173,6 +173,15 @@ async function main() {
     env[k] ??= "";
   }
 
+  // Allowlist email (consigliato per deploy pubblico)
+  step("Allowlist email (consigliato per il deploy)");
+  hint("In dev locale puoi lasciare vuoto. Una volta deployato su Vercel,");
+  hint("metti i tuoi email separati da virgola — chi non è nella lista non");
+  hint("riesce a fare login. Esempio: tua@gmail.com,collaboratore@gmail.com");
+  env.AUTH_ALLOWED_EMAILS = await ask("AUTH_ALLOWED_EMAILS (vuoto = libero):", {
+    default: env.AUTH_ALLOWED_EMAILS ?? "",
+  });
+
   // scrivo .env
   step("Scrivo .env");
   const order = [
@@ -184,6 +193,7 @@ async function main() {
     "TOKEN_ENCRYPTION_KEY",
     "ANTHROPIC_API_KEY",
     "CRON_SECRET",
+    "AUTH_ALLOWED_EMAILS",
     "META_CLIENT_ID",
     "META_CLIENT_SECRET",
     "TIKTOK_CLIENT_KEY",

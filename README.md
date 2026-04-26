@@ -151,7 +151,31 @@ Tutte gratis. Fai una app alla volta secondo quale connettore vuoi usare prima.
    a mano in Impostazioni → Spotify (serve un valore a settimana dall'app
    Spotify for Artists → Home → Ascoltatori mensili).
 
-## Deploy su Vercel
+## Demo sempre online — deploy su Vercel
+
+Per non dover lasciare `pnpm dev` acceso sul Mac, deploya l'app su Vercel
+(piano Hobby, gratis):
+
+```bash
+pnpm deploy
+```
+
+Lo script `scripts/deploy.mjs`:
+1. Lancia `vercel link` (interattivo, ti chiede scope e nome progetto)
+2. Sincronizza tutte le env del tuo `.env` locale verso Vercel production
+3. Esegue `vercel deploy --prod` e ti dà l'URL pubblico
+
+⚠️ **Importante per la sicurezza**: una volta deployato, l'URL è pubblico.
+Compila la env `AUTH_ALLOWED_EMAILS` con i tuoi indirizzi email così solo
+tu puoi accedere — altrimenti chiunque conoscendo l'URL può consumare il
+tuo budget Anthropic.
+
+Dopo il primo deploy, sul dev console di ogni piattaforma OAuth devi
+aggiungere il redirect URI con il dominio Vercel (es.
+`https://<tuo-progetto>.vercel.app/api/connect/meta/callback`) accanto a
+quello `localhost:3000` esistente. Lo script te lo ricorda alla fine.
+
+### Deploy manuale (alternativa)
 
 ```bash
 # una tantum
