@@ -157,8 +157,11 @@ Per non dover lasciare `pnpm dev` acceso sul Mac, deploya l'app su Vercel
 (piano Hobby, gratis):
 
 ```bash
-pnpm deploy
+pnpm vercel-deploy
 ```
+
+> ⚠️ Non usare `pnpm deploy`: è un comando built-in di pnpm per workspace.
+> Usa `pnpm vercel-deploy` o `pnpm run deploy`.
 
 Lo script `scripts/deploy.mjs`:
 1. Lancia `vercel link` (interattivo, ti chiede scope e nome progetto)
