@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { canCreateProject, MAX_PROJECTS_PER_USER } from "@/lib/projects";
 import { CreatorKind } from "@prisma/client";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -32,8 +35,8 @@ const CreateBody = z.object({
   niche: z.string().max(80).optional().nullable(),
   city: z.string().max(80).optional().nullable(),
   bio: z.string().max(2000).optional().nullable(),
-  websiteUrl: z.string().url().optional().nullable().or(z.literal("")),
-});
+  websiteUrl: z.string().url().max(300).optional().nullable().or(z.literal("")),
+}).strict();
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -51,47 +54,28 @@ export async function POST(req: Request) {
     );
   }
 
-  // TOCTOU mitigation: check + create in transaction with re-check
-  try {
-    const project = await prisma.$transaction(async (tx) => {
-      const allowed = await canCreateProject(userId);
-      if (!allowed) {
-        throw new Error("CAP_REACHED");
-      }
-      // Re-count inside tx for safety
-      const count = await tx.project.count({ where: { userId } });
-      // The allowlist bypass already passed canCreateProject; re-count only enforces non-allowlisted users
-      const user = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
-      const isAllowlisted = (() => {
-        if (!user?.email) return false;
-        const raw = process.env.EMAIL_ALLOWLIST;
-        if (!raw) return false;
-        const norm = user.email.trim().toLowerCase();
-        return raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).includes(norm);
-      })();
-      if (!isAllowlisted && count >= MAX_PROJECTS_PER_USER) {
-        throw new Error("CAP_REACHED");
-      }
-      return tx.project.create({
-        data: {
-          userId,
-          kind: parsed.data.kind,
-          displayName: parsed.data.displayName,
-          niche: parsed.data.niche || null,
-          city: parsed.data.city || null,
-          bio: parsed.data.bio || null,
-          websiteUrl: parsed.data.websiteUrl || null,
-        },
-      });
-    });
-    return NextResponse.json({ project }, { status: 201 });
-  } catch (err) {
-    if ((err as Error).message === "CAP_REACHED") {
-      return NextResponse.json(
-        { error: "max_projects_reached", limit: MAX_PROJECTS_PER_USER },
-        { status: 403 },
-      );
-    }
-    throw err;
+  // Soft cap: enforced by server-side check, but two concurrent POSTs at
+  // count=N-1 can both pass and end at N+1. Acceptable for M16 (low
+  // concurrency, single-owner accounts). Strict enforcement would require
+  // Serializable isolation + retry, or a row-level lock — overkill here.
+  if (!(await canCreateProject(userId))) {
+    return NextResponse.json(
+      { error: "max_projects_reached", limit: MAX_PROJECTS_PER_USER },
+      { status: 403 },
+    );
   }
+
+  const project = await prisma.project.create({
+    data: {
+      userId,
+      kind: parsed.data.kind,
+      displayName: parsed.data.displayName.trim(),
+      niche: parsed.data.niche?.trim() || null,
+      city: parsed.data.city?.trim() || null,
+      bio: parsed.data.bio?.trim() || null,
+      websiteUrl: parsed.data.websiteUrl?.trim() || null,
+    },
+  });
+
+  return NextResponse.json({ project }, { status: 201 });
 }
