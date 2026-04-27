@@ -1,4 +1,4 @@
-import type { Project, Platform } from "@prisma/client";
+import type { Project, Platform, CreatorKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 // Costruisce il JSON di contesto che diamo a Claude.
@@ -33,7 +33,7 @@ export interface RecommenderContext {
   today: string; // YYYY-MM-DD
   timezone: string;
   project: {
-    kind: string;
+    kind: CreatorKind;
     displayName: string;
     niche?: string | null;
     city?: string | null;
