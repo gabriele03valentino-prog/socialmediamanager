@@ -156,6 +156,25 @@ describe("buildICalendar", () => {
     expect(ics).toContain("BEGIN:VEVENT");
   });
 
+  it("buildICalendar usa displayName progetto nel SUMMARY prefix se passato", () => {
+    const ics = buildICalendar({
+      drafts: [makeDraft({ caption: "Lancio singolo" })],
+      suggestions: [makeSuggestion({ hook: "Idea TikTok" })],
+      appUrl: "https://example.com",
+      projectLabel: "Mio Progetto",
+    });
+    // Prefix anteposto sia ai draft che alle suggestion.
+    expect(ics).toContain("SUMMARY:[Mio Progetto] [BOZZA · INSTAGRAM]");
+    expect(ics).toContain("SUMMARY:[Mio Progetto] [SUGG · TIKTOK]");
+    // Senza projectLabel il prefix non deve comparire.
+    const plain = buildICalendar({
+      drafts: [makeDraft({ caption: "Lancio singolo" })],
+      suggestions: [],
+      appUrl: "https://example.com",
+    });
+    expect(plain).not.toContain("[Mio Progetto]");
+  });
+
   it("converts Rome local time to UTC respecting DST", () => {
     // 1° agosto = CEST (UTC+2): "20:00" locale → "18:00Z"
     const summer = makeSuggestion({
