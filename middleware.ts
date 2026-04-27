@@ -29,5 +29,12 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Escludiamo i file statici di Next.js E qualsiasi file con estensione
+  // alla root (.txt, .xml, .json, .png, .ico, ecc.). Questo evita che il
+  // middleware redireziona al login le request a file di verifica dei
+  // domini (TikTok, Facebook, Google), robots.txt, sitemap.xml ecc.,
+  // serviti da public/.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
+  ],
 };
