@@ -1,14 +1,24 @@
+import type { CreatorKind } from "@prisma/client";
 import { z } from "zod";
+import { getKindLabels, KIND_DISPLAY } from "@/lib/kind-labels";
 import { anthropic, MARKETING_MODEL } from "./claude";
 import { MARKETING_SYSTEM_BLOCKS } from "./prompts";
 
+/**
+ * Project shape consumed dal modulo marketing/persona (M16).
+ * Sostituisce il vecchio lookup ArtistProfile via userId.
+ */
+export interface PersonaProject {
+  id: string;
+  kind: CreatorKind;
+  displayName: string;
+  niche: string | null;
+  city: string | null;
+  bio: string | null;
+}
+
 export interface PersonaInput {
-  artist: {
-    stageName: string;
-    genre: string;
-    city?: string | null;
-    bio?: string | null;
-  };
+  project: PersonaProject;
   // Se l'utente ha dati demografici reali (audience insights IG/YT) li passiamo qui.
   audienceData?: Record<string, unknown>;
   goals?: unknown;
@@ -34,7 +44,7 @@ const PersonasSchema = z.object({
 const TOOL = {
   name: "generate_audience_personas",
   description:
-    "Costruisci 2-3 persona archetipiche dell'audience target dell'artista, usando i dati reali se presenti altrimenti ragionando sul genere + città + bio.",
+    "Costruisci 2-3 persona archetipiche dell'audience target del creator, usando i dati reali se presenti altrimenti ragionando sul kind + nicchia + città + bio.",
   input_schema: {
     type: "object",
     required: ["personas"],
@@ -76,7 +86,7 @@ const TOOL = {
             musicHabits: {
               type: "string",
               description:
-                "Cosa ascolta, come scopre nuova musica, rituali (palestra, macchina, cuffie al lavoro), atteggiamento verso generi vicini",
+                "Cosa consuma, come scopre nuovo contenuto, rituali (palestra, macchina, cuffie al lavoro), atteggiamento verso contenuti vicini",
             },
             platforms: {
               type: "array",
@@ -113,17 +123,37 @@ const TOOL = {
 } as const;
 
 export async function generatePersonas(input: PersonaInput): Promise<PersonaProposal[]> {
-  const userMessage = `Costruisci 2-3 persona dell'audience target per questo artista:
+  const { project } = input;
+  const labels = getKindLabels(project.kind);
+  const kindDisplay = KIND_DISPLAY[project.kind];
+
+  // Payload "compat" per il prompt: descrive il creator nei termini del kind
+  // corrente, così il modello adatta il tono (artista vs podcaster vs brand).
+  const promptPayload = {
+    kind: project.kind,
+    kindLabel: labels.creator,
+    kindDisplay,
+    creator: {
+      displayName: project.displayName,
+      niche: project.niche,
+      city: project.city,
+      bio: project.bio,
+    },
+    audienceData: input.audienceData,
+    goals: input.goals,
+  };
+
+  const userMessage = `Costruisci 2-3 persona dell'audience target per questo ${labels.creator} (${kindDisplay}):
 
 \`\`\`json
-${JSON.stringify(input, null, 2)}
+${JSON.stringify(promptPayload, null, 2)}
 \`\`\`
 
 Regole:
 - Le persona devono essere **distinte tra loro**: non 3 varianti dello stesso fan, ma 3 segmenti con abitudini/leve diverse.
-- Se non hai dati reali, usa statistiche plausibili di mercato IT del genere indicato.
-- I trigger devono essere **azionabili**: "posta BTS studio giovedì alle 21" è buono, "fai contenuti autentici" non lo è.
-- I culturalRefs devono essere **specifici al contesto italiano** (meme reali, influencer reali o archetipi riconoscibili).`;
+- Se non hai dati reali, usa statistiche plausibili di mercato IT della nicchia indicata per un ${labels.creator}.
+- I trigger devono essere **azionabili** e coerenti col kind ${project.kind}: per un ${labels.creator}, "${labels.content}" sono il formato di riferimento.
+- I culturalRefs devono essere **specifici al contesto italiano** (meme reali, micro-influencer reali o archetipi riconoscibili).`;
 
   const response = await anthropic().messages.create({
     model: MARKETING_MODEL,
