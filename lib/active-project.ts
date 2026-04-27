@@ -136,3 +136,36 @@ export async function withProjectRoute(
     throw e;
   }
 }
+
+// OAuth state HMAC: serializza un payload (es. {userId, projectId, platform})
+// e lo firma con AUTH_SECRET. Usato dai connect/* per propagare projectId
+// attraverso il round-trip OAuth in modo tamper-proof.
+export function signOAuthState(payload: Record<string, string>): string {
+  const json = JSON.stringify(payload);
+  const sig = createHmac("sha256", getSecret()).update(json).digest("hex");
+  return Buffer.from(`${json}.${sig}`).toString("base64url");
+}
+
+export function verifyOAuthState(
+  state: string,
+): Record<string, string> | null {
+  try {
+    const decoded = Buffer.from(state, "base64url").toString("utf8");
+    const idx = decoded.lastIndexOf(".");
+    if (idx <= 0) return null;
+    const json = decoded.slice(0, idx);
+    const sig = decoded.slice(idx + 1);
+    const expected = createHmac("sha256", getSecret()).update(json).digest("hex");
+    if (sig.length !== expected.length) return null;
+    if (!timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(json);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, string>;
+  } catch {
+    return null;
+  }
+}

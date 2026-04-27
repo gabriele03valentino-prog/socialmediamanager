@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { fetchArtist, parseArtistId } from "@/lib/platforms/spotify-oauth";
@@ -10,75 +11,77 @@ export const runtime = "nodejs";
 
 const Body = z.object({ artistUrl: z.string().min(1) });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const contentType = req.headers.get("content-type") ?? "";
-  let input: string;
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-    const fd = await req.formData();
-    input = String(fd.get("artistUrl") ?? "");
-  } else {
-    const json = await req.json().catch(() => ({}));
-    const parsed = Body.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+  return withProjectRoute(req, async (project) => {
+    const contentType = req.headers.get("content-type") ?? "";
+    let input: string;
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const fd = await req.formData();
+      input = String(fd.get("artistUrl") ?? "");
+    } else {
+      const json = await req.json().catch(() => ({}));
+      const parsed = Body.safeParse(json);
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+      }
+      input = parsed.data.artistUrl;
     }
-    input = parsed.data.artistUrl;
-  }
 
-  const artistId = parseArtistId(input);
-  if (!artistId) {
-    return redirectOrJson(req, { error: "invalid_url" }, 400);
-  }
+    const artistId = parseArtistId(input);
+    if (!artistId) {
+      return redirectOrJson(req, { error: "invalid_url" }, 400);
+    }
 
-  try {
-    const artist = await fetchArtist(artistId);
-    await prisma.socialAccount.upsert({
-      where: {
-        userId_platform_externalId: {
-          userId: session.user.id,
+    try {
+      const artist = await fetchArtist(artistId);
+      await prisma.socialAccount.upsert({
+        where: {
+          projectId_platform_externalId: {
+            projectId: project.id,
+            platform: "SPOTIFY",
+            externalId: artist.id,
+          },
+        },
+        create: {
+          projectId: project.id,
           platform: "SPOTIFY",
+          handle: artist.name,
           externalId: artist.id,
+          accessTokenEnc: encryptToken(""),
+          scopes: [],
+          meta: {
+            name: artist.name,
+            popularity: artist.popularity,
+            genres: artist.genres,
+            url: artist.external_urls?.spotify,
+            image: artist.images?.[0]?.url,
+          },
         },
-      },
-      create: {
-        userId: session.user.id,
-        platform: "SPOTIFY",
-        handle: artist.name,
-        externalId: artist.id,
-        accessTokenEnc: encryptToken(""),
-        scopes: [],
-        meta: {
-          name: artist.name,
-          popularity: artist.popularity,
-          genres: artist.genres,
-          url: artist.external_urls?.spotify,
-          image: artist.images?.[0]?.url,
+        update: {
+          handle: artist.name,
+          meta: {
+            name: artist.name,
+            popularity: artist.popularity,
+            genres: artist.genres,
+            url: artist.external_urls?.spotify,
+            image: artist.images?.[0]?.url,
+          },
+          lastSyncError: null,
         },
-      },
-      update: {
-        handle: artist.name,
-        meta: {
-          name: artist.name,
-          popularity: artist.popularity,
-          genres: artist.genres,
-          url: artist.external_urls?.spotify,
-          image: artist.images?.[0]?.url,
-        },
-        lastSyncError: null,
-      },
-    });
-    return redirectOrJson(req, {
-      connected: "spotify",
-      artist: artist.name,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return redirectOrJson(req, { error: "spotify_lookup_failed", message }, 500);
-  }
+      });
+      return redirectOrJson(req, {
+        connected: "spotify",
+        artist: artist.name,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return redirectOrJson(req, { error: "spotify_lookup_failed", message }, 500);
+    }
+  });
 }
 
 function redirectOrJson(

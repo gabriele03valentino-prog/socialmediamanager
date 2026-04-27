@@ -120,3 +120,33 @@ export async function syncAccount(account: SocialAccount): Promise<{
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
+
+// Sincronizza tutti i SocialAccount di un Project. Usato sia da
+// /api/metrics/sync (manuale, per il project attivo) sia dal cron T18 che
+// itera su tutti i project di tutti gli utenti.
+export interface SyncAccountResult {
+  accountId: string;
+  platform: string;
+  metrics: boolean;
+  posts: number;
+  audience: boolean;
+  error?: string;
+}
+
+export async function syncProjectAccounts(
+  projectId: string,
+  options: { accountId?: string } = {},
+): Promise<SyncAccountResult[]> {
+  const accounts = await prisma.socialAccount.findMany({
+    where: options.accountId
+      ? { id: options.accountId, projectId }
+      : { projectId },
+  });
+
+  const results: SyncAccountResult[] = [];
+  for (const a of accounts) {
+    const r = await syncAccount(a);
+    results.push({ accountId: a.id, platform: a.platform, ...r });
+  }
+  return results;
+}

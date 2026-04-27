@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { verifyOAuthState } from "@/lib/active-project";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import {
@@ -11,8 +11,6 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const STATE_COOKIE = "meta_oauth_state";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -33,10 +31,21 @@ export async function GET(req: Request) {
     return redirectToSettings(url, { error: "missing_code" });
   }
 
-  const cookieStore = await cookies();
-  const cookieState = cookieStore.get(STATE_COOKIE)?.value;
-  if (!cookieState || cookieState !== state) {
+  // Stato firmato HMAC: estrae projectId in modo tamper-proof.
+  const decoded = verifyOAuthState(state);
+  if (!decoded || !decoded.userId || !decoded.projectId) {
     return redirectToSettings(url, { error: "state_mismatch" });
+  }
+  if (decoded.userId !== session.user.id) {
+    return redirectToSettings(url, { error: "state_mismatch" });
+  }
+
+  // Difensivo: verifica che il project esista e appartenga davvero all'utente.
+  const project = await prisma.project.findUnique({
+    where: { id: decoded.projectId },
+  });
+  if (!project || project.userId !== session.user.id) {
+    return redirectToSettings(url, { error: "project_not_owned" });
   }
 
   const clientId = process.env.META_CLIENT_ID;
@@ -78,14 +87,14 @@ export async function GET(req: Request) {
 
       await prisma.socialAccount.upsert({
         where: {
-          userId_platform_externalId: {
-            userId: session.user.id,
+          projectId_platform_externalId: {
+            projectId: project.id,
             platform: "FACEBOOK",
             externalId: page.id,
           },
         },
         create: {
-          userId: session.user.id,
+          projectId: project.id,
           platform: "FACEBOOK",
           handle: page.name,
           externalId: page.id,
@@ -106,14 +115,14 @@ export async function GET(req: Request) {
         const ig = page.instagramBusinessAccount;
         await prisma.socialAccount.upsert({
           where: {
-            userId_platform_externalId: {
-              userId: session.user.id,
+            projectId_platform_externalId: {
+              projectId: project.id,
               platform: "INSTAGRAM",
               externalId: ig.id,
             },
           },
           create: {
-            userId: session.user.id,
+            projectId: project.id,
             platform: "INSTAGRAM",
             handle: `@${ig.username}`,
             externalId: ig.id,
@@ -150,7 +159,5 @@ function redirectToSettings(
 ): NextResponse {
   const target = new URL("/impostazioni", base.origin);
   for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
-  const res = NextResponse.redirect(target);
-  res.cookies.delete(STATE_COOKIE);
-  return res;
+  return NextResponse.redirect(target);
 }

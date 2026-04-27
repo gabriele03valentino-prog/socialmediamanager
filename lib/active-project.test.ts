@@ -12,6 +12,8 @@ import {
   setActiveProjectCookie,
   requireActiveProject,
   withProject,
+  signOAuthState,
+  verifyOAuthState,
   ACTIVE_PROJECT_COOKIE,
   NoActiveProjectError,
   ProjectNotOwnedError,
@@ -154,5 +156,26 @@ describe("requireActiveProject", () => {
     (prisma.project.findFirst as any).mockResolvedValue(null);
     const fakeReq = { cookies: { get: () => undefined } } as any;
     await expect(requireActiveProject(fakeReq)).rejects.toBeInstanceOf(NoActiveProjectError);
+  });
+});
+
+describe("OAuth state HMAC", () => {
+  beforeEach(() => {
+    process.env.AUTH_SECRET = "test_secret_for_unit_tests_only_xxxxx";
+  });
+
+  it("signOAuthState + verifyOAuthState round-trip", () => {
+    const state = signOAuthState({ userId: "u1", projectId: "p1", platform: "tiktok" });
+    expect(verifyOAuthState(state)).toEqual({ userId: "u1", projectId: "p1", platform: "tiktok" });
+  });
+
+  it("verifyOAuthState rejects tampered state", () => {
+    const state = signOAuthState({ userId: "u1", projectId: "p1" });
+    const tampered = state.slice(0, -2) + "00";
+    expect(verifyOAuthState(tampered)).toBeNull();
+  });
+
+  it("verifyOAuthState rejects garbage", () => {
+    expect(verifyOAuthState("garbage")).toBeNull();
   });
 });
