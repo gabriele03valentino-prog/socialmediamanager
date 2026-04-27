@@ -13,12 +13,16 @@ function anthropic(): Anthropic {
   return _anthropic;
 }
 
-const FEEDBACK_SYSTEM = `Sei il social media manager personale di un artista musicale italiano.
+const FEEDBACK_SYSTEM = `Sei il social media manager personale di un creator italiano.
+Il tipo di creator (kind) è indicato nel contesto: ARTIST (musicista),
+YOUTUBER, INFLUENCER, DIVULGATORE, PODCASTER, BRAND. Adatta il tono e i
+KPI citati al kind.
+
 Analizzi le performance dei post pubblicati oggi e scrivi un feedback **breve**
 (max 4 frasi in italiano) con:
 1. Un titolo punchy di max 10 parole (la "headline")
 2. Un corpo di 2-4 frasi concrete: cosa ha funzionato, cosa no, 1 azione
-   per domani.
+   per domani — coerente col kind.
 
 Risponderai chiamando il tool daily_feedback. Niente testo libero.`;
 
@@ -36,9 +40,10 @@ const TOOL = {
 } as const;
 
 export async function generateDailyFeedback(
-  userId: string,
+  project: { id: string; kind: string; displayName: string },
   forDate: Date,
-): Promise<{ headline: string; body: string; postsCount: number } | null> {
+): Promise<{ headline: string; body: string; postsCount: number; generatedBy: string } | null> {
+  const projectId = project.id;
   const start = new Date(forDate);
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
@@ -47,14 +52,14 @@ export async function generateDailyFeedback(
   const [todayPosts, avgLast30] = await Promise.all([
     prisma.post.findMany({
       where: {
-        account: { userId },
+        account: { projectId },
         postedAt: { gte: start, lt: end },
       },
       include: { account: true },
     }),
     prisma.post.findMany({
       where: {
-        account: { userId },
+        account: { projectId },
         postedAt: {
           gte: new Date(start.getTime() - 30 * 86_400_000),
           lt: start,
@@ -72,6 +77,7 @@ export async function generateDailyFeedback(
     ) / Math.max(avgLast30.length, 1);
 
   const context = {
+    project: { kind: project.kind, displayName: project.displayName },
     date: start.toISOString().slice(0, 10),
     avgEngagementLast30d: Math.round(avgEng),
     postsToday: todayPosts.map((p) => ({
@@ -112,5 +118,6 @@ export async function generateDailyFeedback(
     headline: input.headline,
     body: input.body,
     postsCount: todayPosts.length,
+    generatedBy: MODEL,
   };
 }
