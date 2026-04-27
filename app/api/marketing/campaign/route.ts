@@ -33,12 +33,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "marketing.campaign",
-    LIMITS.marketingCampaign,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {
@@ -48,6 +43,13 @@ export async function POST(req: NextRequest) {
   const mappedType = TYPE_MAP[input.type]!;
 
   return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "marketing.campaign",
+      LIMITS.marketingCampaign,
+      project.id,
+    );
+    if (limited) return limited;
     const availableTypes = KIND_CAMPAIGN_TYPES[project.kind];
     if (!availableTypes.includes(mappedType)) {
       return NextResponse.json(

@@ -14,14 +14,17 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "marketing.persona",
-    LIMITS.marketingPersona,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
 
   return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "marketing.persona",
+      LIMITS.marketingPersona,
+      project.id,
+    );
+    if (limited) return limited;
+
     const audiences = await prisma.audienceInsight.findMany({
       where: { account: { projectId: project.id } },
       orderBy: { capturedAt: "desc" },

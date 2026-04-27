@@ -20,12 +20,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "marketing.score",
-    LIMITS.marketingScore,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {
@@ -40,6 +35,13 @@ export async function POST(req: NextRequest) {
   }
 
   return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "marketing.score",
+      LIMITS.marketingScore,
+      project.id,
+    );
+    if (limited) return limited;
     // Universal signals: niente kind branching, ma diamo al modello il
     // contesto creator generico (displayName/niche/city) per radicare le
     // valutazioni neuro al brand del progetto attivo.

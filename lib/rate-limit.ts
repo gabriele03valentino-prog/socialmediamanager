@@ -57,29 +57,6 @@ export function checkRateLimit(
 
 import { NextResponse } from "next/server";
 
-/**
- * Helper che applica il rate limit a una request autenticata e ritorna una
- * NextResponse 429 pronta se il limite è superato, oppure null se è OK.
- */
-export function rateLimitOrResponse(
-  userId: string,
-  routeKey: string,
-  opts: RateLimitOptions,
-): NextResponse | null {
-  const result = checkRateLimit(`${userId}:${routeKey}`, opts);
-  if (result.ok) return null;
-  return NextResponse.json(
-    {
-      error: `Hai raggiunto il limite per "${routeKey}". Riprova fra ${result.retryAfterSeconds}s.`,
-      retryAfterSeconds: result.retryAfterSeconds,
-    },
-    {
-      status: 429,
-      headers: { "Retry-After": String(result.retryAfterSeconds) },
-    },
-  );
-}
-
 // Limiti per route — calibrati su uso single-tenant realistico.
 // `windowMs` espresso in ms costanti per leggibilità.
 const HOUR = 60 * 60 * 1000;
@@ -93,4 +70,59 @@ export const LIMITS = {
   marketingScore: { max: 30, windowMs: HOUR }, // on-demand su singolo draft
   marketingPersona: { max: 5, windowMs: DAY },
   marketingCampaign: { max: 5, windowMs: DAY },
+  // Cap globale per user across progetti — evita che un attaccante apra N
+  // progetti e bypassi le quote per-route moltiplicando il danno.
+  global: { max: 50, windowMs: HOUR },
 } as const;
+
+/**
+ * Applica rate limit composito userId+projectId+routeKey + global cap per user.
+ * Restituisce NextResponse 429 oppure null.
+ *
+ * @param userId    id utente autenticato
+ * @param routeKey  identificatore della route (es. "marketing.score")
+ * @param opts      max + windowMs (tipicamente uno di LIMITS.*)
+ * @param projectId opzionale: se presente, quota indipendente per progetto
+ *                  (chiave `userId:projectId:routeKey`); se assente, fallback
+ *                  alla chiave legacy `userId:routeKey` per backward-compat.
+ *
+ * Indipendentemente da projectId, viene SEMPRE controllato il cap globale
+ * `userId:GLOBAL` (LIMITS.global) per evitare abuso multi-progetto.
+ */
+export function rateLimitOrResponse(
+  userId: string,
+  routeKey: string,
+  opts: RateLimitOptions,
+  projectId?: string,
+): NextResponse | null {
+  // Cap globale per user (prevent abuse multi-progetto)
+  const global = checkRateLimit(`${userId}:GLOBAL`, LIMITS.global);
+  if (!global.ok) {
+    return NextResponse.json(
+      {
+        error: `Hai raggiunto il limite globale orario. Riprova fra ${global.retryAfterSeconds}s.`,
+        retryAfterSeconds: global.retryAfterSeconds,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(global.retryAfterSeconds) },
+      },
+    );
+  }
+
+  const scopedKey = projectId
+    ? `${userId}:${projectId}:${routeKey}`
+    : `${userId}:${routeKey}`;
+  const result = checkRateLimit(scopedKey, opts);
+  if (result.ok) return null;
+  return NextResponse.json(
+    {
+      error: `Hai raggiunto il limite per "${routeKey}". Riprova fra ${result.retryAfterSeconds}s.`,
+      retryAfterSeconds: result.retryAfterSeconds,
+    },
+    {
+      status: 429,
+      headers: { "Retry-After": String(result.retryAfterSeconds) },
+    },
+  );
+}

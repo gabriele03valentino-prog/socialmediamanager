@@ -13,13 +13,15 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "suggestions.generate",
-    LIMITS.suggestionsGenerate,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
   return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "suggestions.generate",
+      LIMITS.suggestionsGenerate,
+      project.id,
+    );
+    if (limited) return limited;
     try {
       const count = await generateWeeklyPlan(project.id);
       return NextResponse.json({ ok: true, created: count });

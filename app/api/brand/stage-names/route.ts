@@ -20,12 +20,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "brand.stage-names",
-    LIMITS.brandStageNames,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {
@@ -33,6 +28,13 @@ export async function POST(req: NextRequest) {
   }
 
   return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "brand.stage-names",
+      LIMITS.brandStageNames,
+      project.id,
+    );
+    if (limited) return limited;
     const input = {
       project: {
         id: project.id,
