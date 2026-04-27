@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateDailyFeedback } from "@/lib/ai/feedback";
 import { prisma } from "@/lib/db";
+import { sendDailyFeedbackEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,8 +19,21 @@ export async function GET(req: Request) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const users = await prisma.user.findMany({ select: { id: true } });
-  const report: Array<{ userId: string; written: boolean; error?: string }> = [];
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      artistProfile: { select: { stageName: true } },
+    },
+  });
+
+  const appUrl = process.env.NEXTAUTH_URL ?? "https://localhost:3000";
+  const report: Array<{
+    userId: string;
+    written: boolean;
+    emailSent?: boolean;
+    error?: string;
+  }> = [];
 
   for (const user of users) {
     try {
@@ -46,7 +60,21 @@ export async function GET(req: Request) {
           postsCount: feedback.postsCount,
         },
       });
-      report.push({ userId: user.id, written: true });
+
+      let emailSent: boolean | undefined;
+      if (user.email) {
+        const r = await sendDailyFeedbackEmail(user.email, {
+          artistName: user.artistProfile?.stageName ?? "artista",
+          forDate: today,
+          headline: feedback.headline,
+          body: feedback.body,
+          postsCount: feedback.postsCount,
+          appUrl,
+        });
+        emailSent = r.ok;
+      }
+
+      report.push({ userId: user.id, written: true, emailSent });
     } catch (err) {
       report.push({
         userId: user.id,

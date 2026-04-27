@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { generatePersonas } from "@/lib/ai/marketing/persona";
 import { prisma } from "@/lib/db";
+import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,6 +13,12 @@ export async function POST() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const limited = rateLimitOrResponse(
+    session.user.id,
+    "marketing.persona",
+    LIMITS.marketingPersona,
+  );
+  if (limited) return limited;
 
   const userId = session.user.id;
   const [profile, audiences] = await Promise.all([

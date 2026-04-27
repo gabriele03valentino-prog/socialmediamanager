@@ -57,6 +57,48 @@ export default async function MarketingHubPage({
         </div>
       ) : null}
 
+      {personasCount === 0 && avgScore._count === 0 && campaigns.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+          <h2 className="text-base font-semibold">Inizia da qui</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Tre cose puoi fare subito per dare al recommender uno strato di neuromarketing:
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li className="flex gap-2">
+              <span className="text-brand-600">→</span>
+              <span>
+                <Link
+                  href="/marketing/persona"
+                  className="font-medium text-brand-600 hover:underline"
+                >
+                  Genera 2-3 persona archetipiche
+                </Link>{" "}
+                del tuo pubblico — il recommender le userà come contesto per i suggerimenti.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-brand-600">→</span>
+              <span>
+                Apri un suggerimento o una bozza e clicca <strong>“Neuro-analisi”</strong>{" "}
+                per uno score 0-100 + 3 consigli concreti per migliorare il contenuto.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-brand-600">→</span>
+              <span>
+                <Link
+                  href="/marketing/campagna/nuova"
+                  className="font-medium text-brand-600 hover:underline"
+                >
+                  Pianifica una campagna release
+                </Link>{" "}
+                — 5-7 tappe pre-popolate dal teaser al post-drop, neuro-ottimizzate.
+              </span>
+            </li>
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
           <div className="text-xs uppercase tracking-wide text-neutral-500">

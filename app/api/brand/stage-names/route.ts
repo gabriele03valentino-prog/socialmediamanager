@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/brand/stage-name";
 import { prisma } from "@/lib/db";
 import { checkHandle } from "@/lib/handle-check";
+import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const limited = rateLimitOrResponse(
+    session.user.id,
+    "brand.stage-names",
+    LIMITS.brandStageNames,
+  );
+  if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {

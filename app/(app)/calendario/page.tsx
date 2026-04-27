@@ -59,12 +59,21 @@ export default async function CalendarioPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Calendario editoriale</h1>
-        <p className="text-sm text-neutral-500">
-          Le prossime 4 settimane. I <span className="text-pink-500">pallini</span>{" "}
-          indicano la piattaforma; clicca un item per aprirlo.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Calendario editoriale</h1>
+          <p className="text-sm text-neutral-500">
+            Le prossime 4 settimane. I <span className="text-pink-500">pallini</span>{" "}
+            indicano la piattaforma; clicca un item per aprirlo.
+          </p>
+        </div>
+        <a
+          href="/api/export/calendar"
+          className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800"
+          title="Scarica calendario come .ics — sottoscrivibile su Google/Apple/Outlook"
+        >
+          ⬇ Esporta .ics
+        </a>
       </header>
 
       <CalendarGrid items={items} />

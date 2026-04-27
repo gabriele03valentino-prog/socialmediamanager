@@ -30,12 +30,52 @@ export default async function SuggestionsPage() {
       </header>
 
       {suggestions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500 dark:border-neutral-700">
-          Nessun suggerimento pendente. Completa il{" "}
-          <a href="/impostazioni/profilo" className="text-brand-600 underline">
-            profilo artista
-          </a>{" "}
-          e clicca "Genera piano settimanale".
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-8 dark:border-neutral-700 dark:bg-neutral-900">
+          <h2 className="text-base font-semibold">Nessun suggerimento pendente</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Per generare un piano settimanale rilevante, Claude ha bisogno di conoscerti
+            e di vedere i dati dei tuoi profili. Bastano 3 passi:
+          </p>
+          <ol className="mt-4 space-y-3 text-sm">
+            <li className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
+                1
+              </span>
+              <span>
+                <a
+                  href="/impostazioni"
+                  className="font-medium text-brand-600 hover:underline"
+                >
+                  Connetti almeno un account social
+                </a>{" "}
+                — Instagram, TikTok, YouTube o Spotify (anche solo uno basta per partire).
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
+                2
+              </span>
+              <span>
+                <a
+                  href="/impostazioni/profilo"
+                  className="font-medium text-brand-600 hover:underline"
+                >
+                  Compila il profilo artista
+                </a>{" "}
+                — genere, stage name, città, obiettivi (es. "10k follower IG entro 6 mesi").
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-700/20 dark:text-brand-100">
+                3
+              </span>
+              <span>
+                Clicca <strong>“Genera piano settimanale”</strong> qui sopra: Claude
+                proporrà 7-10 contenuti su misura, ognuno con caption, hashtag e
+                rationale.
+              </span>
+            </li>
+          </ol>
         </div>
       ) : (
         <div className="space-y-4">

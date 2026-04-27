@@ -1,10 +1,11 @@
 import type { NeuroScore, Suggestion } from "@prisma/client";
-import {
-  type NeuroBreakdown,
-  type NeuroScoreData,
-  NeuroScoreSection,
-} from "@/components/NeuroScoreSection";
+import { NeuroScoreSection } from "@/components/NeuroScoreSection";
 import { SuggestionActions } from "@/components/SuggestionActions";
+import {
+  parseNeuroBreakdown,
+  parseNeuroImprovements,
+  type NeuroScoreData,
+} from "@/lib/ai/marketing/types";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
 export function SuggestionCard({
@@ -21,8 +22,8 @@ export function SuggestionCard({
   const neuroData: NeuroScoreData | null = neuroScore
     ? {
         score: neuroScore.score,
-        breakdown: neuroScore.breakdown as unknown as NeuroBreakdown,
-        improvements: neuroScore.improvements as unknown as string[],
+        breakdown: parseNeuroBreakdown(neuroScore.breakdown),
+        improvements: parseNeuroImprovements(neuroScore.improvements),
       }
     : null;
 

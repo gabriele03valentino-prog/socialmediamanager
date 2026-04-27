@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { generateCampaign } from "@/lib/ai/marketing/campaign";
 import { prisma } from "@/lib/db";
+import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +31,12 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const limited = rateLimitOrResponse(
+    session.user.id,
+    "marketing.campaign",
+    LIMITS.marketingCampaign,
+  );
+  if (limited) return limited;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {

@@ -63,60 +63,126 @@ export function CalendarGrid({
     byDate.get(key)!.push(it);
   }
 
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950">
-        {DAY_LABELS.map((l) => (
-          <div key={l} className="px-2 py-2 text-center">
-            {l}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {days.map((d) => {
-          const key = d.toISOString().slice(0, 10);
-          const list = byDate.get(key) ?? [];
-          const isToday = sameDay(d, today);
-          const isPast = d.getTime() < today.setHours(0, 0, 0, 0) && !isToday;
-          return (
-            <div
-              key={key}
-              className={`min-h-[100px] border-b border-r border-neutral-200 p-2 dark:border-neutral-800 ${
-                isPast ? "bg-neutral-50/50 dark:bg-neutral-950/40" : ""
-              }`}
-            >
+    <>
+      {/* Vista desktop: griglia 7 colonne */}
+      <div className="hidden overflow-hidden rounded-xl border border-neutral-200 bg-white md:block dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50 text-xs font-medium uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950">
+          {DAY_LABELS.map((l) => (
+            <div key={l} className="px-2 py-2 text-center">
+              {l}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((d) => {
+            const key = d.toISOString().slice(0, 10);
+            const list = byDate.get(key) ?? [];
+            const isToday = sameDay(d, today);
+            const isPast = d.getTime() < todayStart.getTime() && !isToday;
+            return (
               <div
-                className={`mb-1 text-xs ${
-                  isToday
-                    ? "inline-block rounded-full bg-brand-600 px-1.5 py-0.5 text-white"
-                    : "text-neutral-500"
+                key={key}
+                className={`min-h-[100px] border-b border-r border-neutral-200 p-2 dark:border-neutral-800 ${
+                  isPast ? "bg-neutral-50/50 dark:bg-neutral-950/40" : ""
                 }`}
               >
-                {d.getDate()}
+                <div
+                  className={`mb-1 text-xs ${
+                    isToday
+                      ? "inline-block rounded-full bg-brand-600 px-1.5 py-0.5 text-white"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  {d.getDate()}
+                </div>
+                <div className="space-y-1">
+                  {list.map((it) => (
+                    <Link
+                      key={`${it.kind}-${it.id}`}
+                      href={it.href}
+                      className="flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-1 text-[11px] hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                      title={it.label}
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${PLATFORM_DOT[it.platform]}`}
+                      />
+                      <span className="flex-1 truncate">{it.label}</span>
+                      {it.time ? (
+                        <span className="shrink-0 text-neutral-500">{it.time}</span>
+                      ) : null}
+                    </Link>
+                  ))}
+                </div>
+                <span className="sr-only">
+                  {PLATFORM_LABEL[list[0]?.platform ?? "INSTAGRAM"]}
+                </span>
               </div>
-              <div className="space-y-1">
-                {list.map((it) => (
-                  <Link
-                    key={`${it.kind}-${it.id}`}
-                    href={it.href}
-                    className="flex items-center gap-1.5 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-1 text-[11px] hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
-                    title={it.label}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${PLATFORM_DOT[it.platform]}`}
-                    />
-                    <span className="flex-1 truncate">{it.label}</span>
-                    {it.time ? (
-                      <span className="shrink-0 text-neutral-500">{it.time}</span>
-                    ) : null}
-                  </Link>
-                ))}
-              </div>
-              <span className="sr-only">{PLATFORM_LABEL[list[0]?.platform ?? "INSTAGRAM"]}</span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      {/* Vista mobile: agenda verticale, mostra solo giorni con eventi */}
+      <div className="space-y-2 md:hidden">
+        {days
+          .filter((d) => (byDate.get(d.toISOString().slice(0, 10)) ?? []).length > 0)
+          .map((d) => {
+            const key = d.toISOString().slice(0, 10);
+            const list = byDate.get(key) ?? [];
+            const isToday = sameDay(d, today);
+            const isPast = d.getTime() < todayStart.getTime() && !isToday;
+            return (
+              <section
+                key={key}
+                className={`rounded-xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900 ${
+                  isPast ? "opacity-60" : ""
+                }`}
+              >
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span
+                    className={`text-sm font-semibold ${
+                      isToday ? "text-brand-600" : "text-neutral-700 dark:text-neutral-200"
+                    }`}
+                  >
+                    {DAY_LABELS[(d.getDay() + 6) % 7]} {d.getDate()}/
+                    {String(d.getMonth() + 1).padStart(2, "0")}
+                    {isToday ? " · oggi" : ""}
+                  </span>
+                  <span className="text-xs text-neutral-500">{list.length} item</span>
+                </div>
+                <ul className="space-y-1.5">
+                  {list.map((it) => (
+                    <li key={`${it.kind}-${it.id}`}>
+                      <Link
+                        href={it.href}
+                        className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-2 text-sm hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                      >
+                        <span
+                          className={`h-2 w-2 shrink-0 rounded-full ${PLATFORM_DOT[it.platform]}`}
+                        />
+                        <span className="flex-1 truncate">{it.label}</span>
+                        {it.time ? (
+                          <span className="shrink-0 text-xs text-neutral-500">
+                            {it.time}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        {days.every((d) => (byDate.get(d.toISOString().slice(0, 10)) ?? []).length === 0) ? (
+          <div className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500 dark:border-neutral-700">
+            Nessun item nelle prossime {weeks} settimane.
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 }

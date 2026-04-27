@@ -3,7 +3,7 @@
 import type { Draft } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { PLATFORM_LABEL } from "@/lib/utils";
+import { PLATFORM_LABEL, toDatetimeLocal } from "@/lib/utils";
 
 export function DraftEditor({ draft }: { draft: Draft }) {
   const router = useRouter();
@@ -17,13 +17,7 @@ export function DraftEditor({ draft }: { draft: Draft }) {
   );
   const [status, setStatus] = useState<Draft["status"]>(draft.status);
   const [scheduledFor, setScheduledFor] = useState(
-    draft.scheduledFor
-      ? new Date(
-          draft.scheduledFor.getTime() - draft.scheduledFor.getTimezoneOffset() * 60000,
-        )
-          .toISOString()
-          .slice(0, 16)
-      : "",
+    toDatetimeLocal(draft.scheduledFor),
   );
   const [mediaNotes, setMediaNotes] = useState(draft.mediaNotes ?? "");
   const [copyMsg, setCopyMsg] = useState<string | null>(null);

@@ -2,44 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { type HandleStatus, manualCheckUrl } from "@/lib/handle-check";
+import {
+  type IdeaWithAvailability,
+  StageNameIdeaCard,
+} from "./StageNameIdeaCard";
 
-interface Idea {
-  id: string;
-  name: string;
-  rationale: string;
-  availability: {
-    instagram: HandleStatus;
-    tiktok: HandleStatus;
-    spotify: HandleStatus;
-  } | null;
-  chosen: boolean;
-}
+export type Idea = IdeaWithAvailability;
 
-const STATUS_CHIP: Record<HandleStatus, { label: string; cls: string }> = {
-  free: {
-    label: "libero",
-    cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200",
-  },
-  taken: {
-    label: "occupato",
-    cls: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
-  },
-  unknown: {
-    label: "da verificare",
-    cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
-  },
-  manual: {
-    label: "verifica ↗",
-    cls: "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/40 dark:text-sky-200",
-  },
-};
-
-export function StageNameWizard({
-  initialIdeas,
-}: {
-  initialIdeas: Idea[];
-}) {
+export function StageNameWizard({ initialIdeas }: { initialIdeas: Idea[] }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -121,7 +91,7 @@ export function StageNameWizard({
             Separate da virgole. Più sono evocative meglio è.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="block text-sm font-medium">Iniziali (opz.)</label>
             <input
@@ -157,7 +127,7 @@ export function StageNameWizard({
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             disabled={loading}
@@ -165,9 +135,7 @@ export function StageNameWizard({
           >
             {loading ? "Genero… (15-25s)" : "Genera proposte"}
           </button>
-          {error ? (
-            <span className="text-xs text-rose-600">{error}</span>
-          ) : null}
+          {error ? <span className="text-xs text-rose-600">{error}</span> : null}
         </div>
       </form>
 
@@ -178,74 +146,12 @@ export function StageNameWizard({
           </h2>
           <ul className="grid gap-3 md:grid-cols-2">
             {ideas.map((idea) => (
-              <li
+              <StageNameIdeaCard
                 key={idea.id}
-                className={`rounded-xl border p-4 ${
-                  idea.chosen
-                    ? "border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-700/20"
-                    : "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-xl font-bold">{idea.name}</h3>
-                  {idea.chosen ? (
-                    <span className="rounded bg-brand-600 px-2 py-0.5 text-xs text-white">
-                      Scelto
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-                  {idea.rationale}
-                </p>
-                {idea.availability ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
-                    {(["instagram", "tiktok", "spotify"] as const).map((p) => {
-                      const s = idea.availability![p];
-                      const chip = STATUS_CHIP[s];
-                      const label = `${p.toUpperCase()} · ${chip.label}`;
-                      if (s === "manual" && (p === "instagram" || p === "tiktok")) {
-                        return (
-                          <a
-                            key={p}
-                            href={manualCheckUrl(p, idea.name)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`rounded px-1.5 py-0.5 transition-colors ${chip.cls}`}
-                            title={`Apri ${p} per verificare`}
-                          >
-                            {label}
-                          </a>
-                        );
-                      }
-                      return (
-                        <span
-                          key={p}
-                          className={`rounded px-1.5 py-0.5 ${chip.cls}`}
-                        >
-                          {label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="mt-3 text-[10px] text-neutral-400">
-                    disponibilità non verificata
-                  </div>
-                )}
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    onClick={() => choose(idea.id)}
-                    disabled={choosingId !== null || idea.chosen}
-                    className="rounded-md bg-brand-600 px-3 py-1.5 text-xs text-white hover:bg-brand-700 disabled:opacity-50"
-                  >
-                    {choosingId === idea.id
-                      ? "…"
-                      : idea.chosen
-                        ? "Già scelto"
-                        : "Scegli questo nome"}
-                  </button>
-                </div>
-              </li>
+                idea={idea}
+                choosing={choosingId === idea.id}
+                onChoose={() => choose(idea.id)}
+              />
             ))}
           </ul>
         </section>

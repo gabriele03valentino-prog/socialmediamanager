@@ -228,6 +228,7 @@ stub nei connettori social).
 - [x] **M12** — Marketing / neuromarketing: persona, neuro-score, campaign planner
 - [x] **M13** — Fix post-review: DB retry, editor feedback, env cleanup, handle check onesto
 - [x] **M14** — Automazioni: GitHub Action CI + reviewer subagent + Stop hook typecheck
+- [x] **M15** — Quality of life: mobile sidebar + empty states + rate limit + goal tracking + email Resend + export CSV/iCal + 48 test vitest + type guards Zod + USAGE.md
 
 ## Automazioni di qualità
 
@@ -263,8 +264,11 @@ incluso nell'app.
 ## Test end-to-end
 
 ```bash
-pnpm typecheck
-pnpm build
+pnpm typecheck         # type check
+pnpm test              # 48 unit test (vitest) — utils, rate-limit, export, goals, types, email
+pnpm test:watch        # modalità watch durante lo sviluppo
+pnpm test:coverage     # report coverage lcov
+pnpm build             # build di produzione
 
 # sync manuale (da autenticato)
 curl -X POST http://localhost:3000/api/metrics/sync
@@ -273,6 +277,51 @@ curl -X POST http://localhost:3000/api/metrics/sync
 curl -H "Authorization: Bearer $CRON_SECRET" \
      http://localhost:3000/api/cron/daily-sync
 ```
+
+## Notifiche email (opzionali)
+
+Imposta `RESEND_API_KEY` ed `EMAIL_FROM` in `.env` per ricevere il feedback
+serale via email. Senza queste env vars il cron continua a scrivere il record
+`DailyFeedback` in DB (visibile dalla dashboard), ma non manda nessuna email.
+Free tier Resend = 3.000 mail/mese, abbondante.
+
+## Rate limit & budget cap
+
+Le route che chiamano Anthropic (recommender, brand, neuro-score, campaign,
+persona) hanno un rate limit in-memory per utente:
+
+| Route | Limite |
+|---|---|
+| `/api/suggestions/generate` | 3/ora |
+| `/api/brand/stage-names` | 5/giorno |
+| `/api/brand/generate-identity` | 5/giorno |
+| `/api/brand/cover-brief` | 10/giorno |
+| `/api/marketing/score` | 30/ora |
+| `/api/marketing/persona` | 5/giorno |
+| `/api/marketing/campaign` | 5/giorno |
+
+Il **paracadute economico vero** è il **budget cap su
+[Anthropic Console](https://console.anthropic.com/settings/limits)** — imposta
+$5/mese hard stop. Il rate limit serve solo a evitare spese accidentali da
+loop client/bug.
+
+## Calendario sottoscrivibile
+
+L'endpoint `/api/export/calendar` produce un `.ics` (RFC 5545) con bozze
+schedulate + suggerimenti pendenti. Aprilo dal browser per scaricarlo, oppure
+sottoscrivilo come feed live:
+
+```
+https://<tua-app>.vercel.app/api/export/calendar?key=<CALENDAR_FEED_KEY>
+```
+
+Imposta entrambe le env vars per abilitare il feed senza login:
+- `CALENDAR_FEED_KEY` — 32 char random
+- `CALENDAR_FEED_OWNER_ID` — il `User.id` autorizzato (hardcoded server-side
+  per evitare IDOR; il client non può indicare un userId arbitrario)
+
+Funziona su Google Calendar, Apple Calendar, Outlook. Confronto stringhe
+in tempo costante per evitare timing attack sul token.
 
 ## Limiti noti (trasparenza)
 

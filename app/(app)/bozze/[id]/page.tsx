@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { DraftEditor } from "@/components/DraftEditor";
+import { NeuroScoreSection } from "@/components/NeuroScoreSection";
 import {
-  type NeuroBreakdown,
+  parseNeuroBreakdown,
+  parseNeuroImprovements,
   type NeuroScoreData,
-  NeuroScoreSection,
-} from "@/components/NeuroScoreSection";
+} from "@/lib/ai/marketing/types";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -29,10 +30,8 @@ export default async function DraftDetailPage({
   const neuroData: NeuroScoreData | null = draft.neuroScore
     ? {
         score: draft.neuroScore.score,
-        breakdown: draft.neuroScore
-          .breakdown as unknown as NeuroBreakdown,
-        improvements: draft.neuroScore
-          .improvements as unknown as string[],
+        breakdown: parseNeuroBreakdown(draft.neuroScore.breakdown),
+        improvements: parseNeuroImprovements(draft.neuroScore.improvements),
       }
     : null;
 

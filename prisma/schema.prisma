@@ -32,6 +32,7 @@ model User {
   neuroScores    NeuroScore[]
   personas       Persona[]
   campaigns      Campaign[]
+  goals          Goal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -398,4 +399,43 @@ model Campaign {
   updatedAt DateTime @updatedAt
 
   @@index([userId, releaseDate])
+}
+
+// Obiettivi tracciabili nel tempo (es. "10k follower IG entro il 31/12").
+// La progressione si calcola correlando questo record con MetricSnapshot del
+// SocialAccount corrispondente per la piattaforma indicata.
+enum GoalMetric {
+  FOLLOWERS
+  AVG_VIEWS
+  AVG_REACH
+  MONTHLY_LISTENERS
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  EXPIRED
+  ARCHIVED
+}
+
+model Goal {
+  id          String     @id @default(cuid())
+  userId      String
+  platform    Platform
+  metric      GoalMetric
+  targetValue Int
+  targetDate  DateTime?
+  startValue  Int        @default(0)
+  startedAt   DateTime   @default(now())
+  achievedAt  DateTime?
+  status      GoalStatus @default(ACTIVE)
+  note        String?    @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, platform])
 }

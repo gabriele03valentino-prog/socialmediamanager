@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateWeeklyPlan } from "@/lib/ai/recommender";
+import { evaluateAllActiveGoals } from "@/lib/goals";
 import { syncAccount } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,13 @@ export async function GET(req: Request) {
 
   const users = await prisma.user.findMany({ include: { socialAccounts: true } });
 
-  const report: Array<{ userId: string; synced: number; suggestions: number; errors: string[] }> = [];
+  const report: Array<{
+    userId: string;
+    synced: number;
+    suggestions: number;
+    goalsChanged: number;
+    errors: string[];
+  }> = [];
 
   for (const user of users) {
     const errors: string[] = [];
@@ -40,7 +47,15 @@ export async function GET(req: Request) {
       errors.push(`recommender: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    report.push({ userId: user.id, synced, suggestions, errors });
+    let goalsChanged = 0;
+    try {
+      const r = await evaluateAllActiveGoals(user.id);
+      goalsChanged = r.changed;
+    } catch (err) {
+      errors.push(`goals: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    report.push({ userId: user.id, synced, suggestions, goalsChanged, errors });
   }
 
   return NextResponse.json({ ok: true, at: new Date().toISOString(), report });

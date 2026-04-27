@@ -2,21 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  parseNeuroBreakdown,
+  parseNeuroImprovements,
+  type NeuroBreakdown,
+  type NeuroScoreData,
+} from "@/lib/ai/marketing/types";
 
-export interface NeuroBreakdown {
-  hookStrength: number;
-  emotionalValence: number;
-  noveltyBias: number;
-  rewardPrediction: number;
-  socialSalience: number;
-  curiosityGap: number;
-}
-
-export interface NeuroScoreData {
-  score: number;
-  breakdown: NeuroBreakdown;
-  improvements: string[];
-}
+export type { NeuroBreakdown, NeuroScoreData };
 
 const DIM_LABELS: Record<keyof NeuroBreakdown, string> = {
   hookStrength: "Hook (V1/STS)",
@@ -77,16 +70,16 @@ export function NeuroScoreSection({
         error?: string;
         neuroScore?: {
           score: number;
-          breakdown: NeuroBreakdown;
-          improvements: string[];
+          breakdown: unknown;
+          improvements: unknown;
         };
         summary?: string;
       };
       if (json.ok && json.neuroScore) {
         setData({
           score: json.neuroScore.score,
-          breakdown: json.neuroScore.breakdown,
-          improvements: json.neuroScore.improvements,
+          breakdown: parseNeuroBreakdown(json.neuroScore.breakdown),
+          improvements: parseNeuroImprovements(json.neuroScore.improvements),
         });
         setSummary(json.summary ?? null);
         setOpen(true);

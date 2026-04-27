@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { generateBrandIdentity } from "@/lib/ai/brand/identity";
 import { prisma } from "@/lib/db";
+import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const limited = rateLimitOrResponse(
+    session.user.id,
+    "brand.identity",
+    LIMITS.brandIdentity,
+  );
+  if (limited) return limited;
 
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);

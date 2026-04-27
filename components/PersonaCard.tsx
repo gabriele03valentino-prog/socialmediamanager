@@ -1,12 +1,13 @@
 import type { Persona } from "@prisma/client";
 
+function asStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === "string" && x.length > 0);
+}
+
 export function PersonaCard({ persona }: { persona: Persona }) {
-  const triggers = Array.isArray(persona.triggers)
-    ? (persona.triggers as unknown as string[])
-    : [];
-  const refs = Array.isArray(persona.culturalRefs)
-    ? (persona.culturalRefs as unknown as string[])
-    : [];
+  const triggers = asStringArray(persona.triggers);
+  const refs = asStringArray(persona.culturalRefs);
 
   return (
     <article className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
