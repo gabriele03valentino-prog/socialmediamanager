@@ -1,4 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
+import type { Project } from "@prisma/client";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { cookies as nextCookies } from "next/headers";
+
+export class NoActiveProjectError extends Error {
+  status = 412 as const;
+  constructor() {
+    super("NO_ACTIVE_PROJECT");
+  }
+}
+
+export class ProjectNotOwnedError extends Error {
+  status = 404 as const;
+  constructor() {
+    super("PROJECT_NOT_OWNED");
+  }
+}
 
 function getSecret(): Buffer {
   const s = process.env.AUTH_SECRET;
@@ -30,12 +50,6 @@ export function verifyProjectCookie(cookie: string | undefined | null): string |
   }
   return projectId;
 }
-
-import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
-import type { Project } from "@prisma/client";
-import type { NextRequest, NextResponse } from "next/server";
-import { cookies as nextCookies } from "next/headers";
 
 export const ACTIVE_PROJECT_COOKIE = "active_project_id";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -76,9 +90,7 @@ export async function getActiveProject(req?: MinimalReq): Promise<Project | null
 export async function requireActiveProject(req?: MinimalReq): Promise<Project> {
   const proj = await getActiveProject(req);
   if (!proj) {
-    const err = new Error("NO_ACTIVE_PROJECT");
-    (err as any).status = 412;
-    throw err;
+    throw new NoActiveProjectError();
   }
   return proj;
 }
@@ -90,7 +102,7 @@ export async function setActiveProjectCookie(
 ): Promise<void> {
   const proj = await prisma.project.findUnique({ where: { id: projectId } });
   if (!proj || proj.userId !== userId) {
-    throw new Error("PROJECT_NOT_OWNED");
+    throw new ProjectNotOwnedError();
   }
   res.cookies.set({
     name: ACTIVE_PROJECT_COOKIE,
@@ -109,4 +121,18 @@ export async function withProject<T>(
 ): Promise<T> {
   const project = await requireActiveProject(req);
   return fn(project);
+}
+
+export async function withProjectRoute(
+  req: NextRequest,
+  fn: (project: Project) => Promise<NextResponse>,
+): Promise<NextResponse> {
+  try {
+    return await withProject(req, fn);
+  } catch (e) {
+    if (e instanceof NoActiveProjectError) {
+      return NextResponse.json({ error: "no_active_project" }, { status: 412 });
+    }
+    throw e;
+  }
 }

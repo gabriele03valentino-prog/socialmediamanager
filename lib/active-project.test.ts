@@ -1,5 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { signProjectCookie, verifyProjectCookie } from "./active-project";
+
+vi.mock("@/lib/db", () => ({
+  prisma: { project: { findFirst: vi.fn(), findUnique: vi.fn() } },
+}));
+vi.mock("@/auth", () => ({ auth: vi.fn() }));
+
+import {
+  signProjectCookie,
+  verifyProjectCookie,
+  getActiveProject,
+  setActiveProjectCookie,
+  requireActiveProject,
+  withProject,
+  ACTIVE_PROJECT_COOKIE,
+  NoActiveProjectError,
+  ProjectNotOwnedError,
+} from "./active-project";
+import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
 describe("active-project cookie HMAC", () => {
   beforeEach(() => {
@@ -35,21 +53,6 @@ describe("active-project cookie HMAC", () => {
     expect(verifyProjectCookie("proj_abc")).toBeNull();
   });
 });
-
-import {
-  getActiveProject,
-  setActiveProjectCookie,
-  withProject,
-  ACTIVE_PROJECT_COOKIE,
-} from "./active-project";
-
-vi.mock("@/lib/db", () => ({
-  prisma: { project: { findFirst: vi.fn(), findUnique: vi.fn() } },
-}));
-vi.mock("@/auth", () => ({ auth: vi.fn() }));
-
-import { prisma } from "@/lib/db";
-import { auth } from "@/auth";
 
 describe("getActiveProject", () => {
   beforeEach(() => {
@@ -103,5 +106,53 @@ describe("getActiveProject", () => {
     (auth as any).mockResolvedValue(null);
     const fakeReq = { cookies: { get: () => undefined } } as any;
     expect(await getActiveProject(fakeReq)).toBeNull();
+  });
+});
+
+describe("setActiveProjectCookie", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.AUTH_SECRET = "test_secret_for_unit_tests_only_xxxxx";
+  });
+
+  it("throws ProjectNotOwnedError if project.userId !== userId", async () => {
+    (prisma.project.findUnique as any).mockResolvedValue({ id: "p1", userId: "OTHER" });
+    const fakeRes = { cookies: { set: vi.fn() } } as any;
+    await expect(setActiveProjectCookie(fakeRes, "u1", "p1")).rejects.toBeInstanceOf(ProjectNotOwnedError);
+    expect(fakeRes.cookies.set).not.toHaveBeenCalled();
+  });
+
+  it("throws ProjectNotOwnedError if project does not exist", async () => {
+    (prisma.project.findUnique as any).mockResolvedValue(null);
+    const fakeRes = { cookies: { set: vi.fn() } } as any;
+    await expect(setActiveProjectCookie(fakeRes, "u1", "ghost")).rejects.toBeInstanceOf(ProjectNotOwnedError);
+  });
+
+  it("sets cookie with correct flags (httpOnly, sameSite=lax, path=/)", async () => {
+    (prisma.project.findUnique as any).mockResolvedValue({ id: "p1", userId: "u1" });
+    const fakeRes = { cookies: { set: vi.fn() } } as any;
+    await setActiveProjectCookie(fakeRes, "u1", "p1");
+    expect(fakeRes.cookies.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: ACTIVE_PROJECT_COOKIE,
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+      })
+    );
+  });
+});
+
+describe("requireActiveProject", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.AUTH_SECRET = "test_secret_for_unit_tests_only_xxxxx";
+  });
+
+  it("throws NoActiveProjectError if no project found", async () => {
+    (auth as any).mockResolvedValue({ user: { id: "u1" } });
+    (prisma.project.findFirst as any).mockResolvedValue(null);
+    const fakeReq = { cookies: { get: () => undefined } } as any;
+    await expect(requireActiveProject(fakeReq)).rejects.toBeInstanceOf(NoActiveProjectError);
   });
 });
