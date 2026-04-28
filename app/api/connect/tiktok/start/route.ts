@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     const reqUrl = new URL(req.url);
     const origin = reqUrl.origin;
     const redirectUri = `${origin}/api/connect/tiktok/callback`;
+    console.log("[tiktok/start] redirect_uri sent:", redirectUri);
     const nextParam = reqUrl.searchParams.get("next");
     const nextUrl =
       nextParam && nextParam.startsWith("/") ? nextParam : "/impostazioni";
