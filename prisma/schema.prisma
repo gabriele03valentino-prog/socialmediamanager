@@ -98,6 +98,7 @@ model Project {
   campaigns      Campaign[]
   goals          Goal[]
   dailyFeedback  DailyFeedback[]
+  trends         Trend[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -460,4 +461,41 @@ model Goal {
 
   @@index([projectId, status])
   @@index([projectId, platform])
+}
+
+// Trend Library (M18) — sound/format/topic in voga, manuali o suggeriti da Claude.
+enum TrendKind {
+  SOUND
+  FORMAT
+  TOPIC
+  HASHTAG
+  CHALLENGE
+}
+
+enum TrendStatus {
+  ACTIVE
+  WARMING
+  EXPIRED
+}
+
+model Trend {
+  id          String      @id @default(cuid())
+  projectId   String
+  kind        TrendKind
+  name        String
+  description String?     @db.Text
+  sourceUrl   String?
+  platforms   Platform[]
+  status      TrendStatus @default(ACTIVE)
+  notedAt     DateTime    @default(now())
+  expiresAt   DateTime?
+  generatedBy String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([projectId, kind])
 }
