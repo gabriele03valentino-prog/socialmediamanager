@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { generateDailyFeedback } from "@/lib/ai/feedback";
 import { sendAggregatedDailyFeedbackEmail } from "@/lib/email";
@@ -9,7 +10,14 @@ export const dynamic = "force-dynamic";
 
 function authorized(req: Request): boolean {
   if (!process.env.CRON_SECRET) return false;
-  return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
+  const got = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  if (got.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(req: Request) {

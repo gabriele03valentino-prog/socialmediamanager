@@ -50,7 +50,7 @@ describe("GET /api/projects", () => {
 describe("POST /api/projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.EMAIL_ALLOWLIST;
+    delete process.env.AUTH_ALLOWED_EMAILS;
   });
 
   it("401 if not authenticated", async () => {
@@ -103,7 +103,7 @@ describe("POST /api/projects", () => {
   });
 
   it("201 even at high count if allowlisted", async () => {
-    process.env.EMAIL_ALLOWLIST = "owner@test.io";
+    process.env.AUTH_ALLOWED_EMAILS = "owner@test.io";
     (auth as any).mockResolvedValue({ user: { id: "u1" } });
     (prisma.user.findUnique as any).mockResolvedValue({ email: "owner@test.io" });
     (prisma.project.count as any).mockResolvedValue(99);

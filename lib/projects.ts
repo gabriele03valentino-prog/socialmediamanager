@@ -4,7 +4,8 @@ export const MAX_PROJECTS_PER_USER = 5;
 
 export function isAllowlisted(email: string | null | undefined): boolean {
   if (!email) return false;
-  const raw = process.env.EMAIL_ALLOWLIST;
+  // Unifichiamo sull'env già usata da auth.config.ts e documentata in .env.example.
+  const raw = process.env.AUTH_ALLOWED_EMAILS;
   if (!raw) return false;
   const norm = email.trim().toLowerCase();
   const list = raw

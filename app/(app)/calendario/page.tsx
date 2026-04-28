@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CalendarioPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);

@@ -32,7 +32,7 @@ function parseTake(value: string | null): number {
 function parseSkip(value: string | null): number {
   const n = Number.parseInt(value ?? "", 10);
   if (!Number.isFinite(n) || n < 0) return 0;
-  return n;
+  return Math.min(n, 10_000);
 }
 
 export async function GET(req: NextRequest) {

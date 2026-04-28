@@ -59,10 +59,8 @@ export interface RecommenderContext {
       platform: Platform;
       contentType: string;
       ratio: number;
-      metric: string;
       insightTags: string[];
-      caption: string | null;
-      createdAt: string;
+      captionSnippet: string | null;
     }>;
   };
 }
@@ -89,9 +87,10 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
       postMortems: {
         where: {
           OR: [{ outcome: "OUTLIER_HIGH" }, { outcome: "OUTLIER_LOW" }],
+          createdAt: { gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
         },
         orderBy: { createdAt: "desc" },
-        take: 8,
+        take: 16,
       },
     },
   });
@@ -144,15 +143,18 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
     name: t.name,
     platforms: t.platforms,
   }));
-  const recentOutliers = (project.postMortems ?? []).map((m) => ({
+  // Split outlier per dare al recommender un mix bilanciato (più HIGH che LOW
+  // per evitare bias eccessivo verso "cosa non funziona").
+  const allMortems = project.postMortems ?? [];
+  const highs = allMortems.filter((m) => m.outcome === "OUTLIER_HIGH").slice(0, 5);
+  const lows = allMortems.filter((m) => m.outcome === "OUTLIER_LOW").slice(0, 3);
+  const recentOutliers = [...highs, ...lows].map((m) => ({
     outcome: m.outcome,
     platform: m.platform,
     contentType: m.contentType,
     ratio: Number(m.ratio.toFixed(2)),
-    metric: m.metric,
     insightTags: m.insightTags,
-    caption: m.caption?.slice(0, 220) ?? null,
-    createdAt: m.createdAt.toISOString(),
+    captionSnippet: m.caption?.slice(0, 120) ?? null,
   }));
   return {
     today: now.toISOString().slice(0, 10),

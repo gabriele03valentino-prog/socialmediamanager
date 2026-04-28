@@ -3,20 +3,24 @@ import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { buildICalendar } from "@/lib/export";
 import type { NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Costant-time string comparison per evitare timing attacks sul token feed.
+ * Costant-time check sul token feed (L-4): usa node:crypto.timingSafeEqual
+ * (battle-tested) invece di un confronto handrolled. Length-check upfront
+ * perché timingSafeEqual lancia se i buffer hanno dimensioni diverse.
  */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+function isValidFeedKey(key: string | null, expected: string | undefined): boolean {
+  if (!key || !expected) return false;
+  if (key.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(key, "utf8"), Buffer.from(expected, "utf8"));
+  } catch {
+    return false;
   }
-  return diff === 0;
 }
 
 /**
@@ -45,12 +49,7 @@ export async function GET(req: NextRequest) {
 
   let userId: string | undefined;
   let usingFeedKey = false;
-  if (
-    providedKey &&
-    expectedKey &&
-    ownerId &&
-    timingSafeEqual(providedKey, expectedKey)
-  ) {
+  if (ownerId && isValidFeedKey(providedKey, expectedKey)) {
     userId = ownerId;
     usingFeedKey = true;
   } else {

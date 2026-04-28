@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LearningsPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const postMortems = await prisma.postMortem.findMany({
     where: { projectId: project.id },

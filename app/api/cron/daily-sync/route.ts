@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { syncProjectAccounts } from "@/lib/sync";
 import { evaluateProjectGoals } from "@/lib/goals";
@@ -15,7 +16,14 @@ export const dynamic = "force-dynamic";
 
 function authorized(req: Request): boolean {
   if (!process.env.CRON_SECRET) return false;
-  return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
+  const got = req.headers.get("authorization") ?? "";
+  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  if (got.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(req: Request) {
@@ -90,6 +98,7 @@ export async function GET(req: Request) {
       if (baselineValues.length < 3) continue; // not enough baseline data
 
       const baselineMed = median(baselineValues);
+      if (baselineMed < 5) continue; // baseline troppo bassa, evita outlier flood
       const result = evaluatePostMortem(pm.value, baselineMed);
 
       try {

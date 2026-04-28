@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function StageNamePage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const ideas = await prisma.stageNameIdea.findMany({
     where: { projectId: project.id },

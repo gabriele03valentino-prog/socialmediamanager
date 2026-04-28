@@ -34,7 +34,7 @@ function engagementOf(p: {
 export default async function DashboardPage() {
   const session = await auth();
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 

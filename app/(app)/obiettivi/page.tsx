@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ObiettiviPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const goals = await prisma.goal.findMany({
     where: { projectId: project.id },

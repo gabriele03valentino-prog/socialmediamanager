@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SuggestionsPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const suggestions = await prisma.suggestion.findMany({
     where: { projectId: project.id, status: "PROPOSED" },
