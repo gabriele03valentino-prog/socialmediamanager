@@ -1,4 +1,10 @@
-import type { Project, Platform, CreatorKind, TrendKind } from "@prisma/client";
+import type {
+  Project,
+  Platform,
+  CreatorKind,
+  TrendKind,
+  PostOutcome,
+} from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 // Costruisce il JSON di contesto che diamo a Claude.
@@ -47,6 +53,18 @@ export interface RecommenderContext {
   trends?: {
     active: Array<{ kind: TrendKind; name: string; platforms: Platform[] }>;
   };
+  learnings?: {
+    recentOutliers: Array<{
+      outcome: PostOutcome;
+      platform: Platform;
+      contentType: string;
+      ratio: number;
+      metric: string;
+      insightTags: string[];
+      caption: string | null;
+      createdAt: string;
+    }>;
+  };
 }
 
 export async function buildContext(projectId: string): Promise<RecommenderContext> {
@@ -67,6 +85,13 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
         where: { status: "ACTIVE" },
         take: 10,
         orderBy: { notedAt: "desc" },
+      },
+      postMortems: {
+        where: {
+          OR: [{ outcome: "OUTLIER_HIGH" }, { outcome: "OUTLIER_LOW" }],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
       },
     },
   });
@@ -119,6 +144,16 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
     name: t.name,
     platforms: t.platforms,
   }));
+  const recentOutliers = (project.postMortems ?? []).map((m) => ({
+    outcome: m.outcome,
+    platform: m.platform,
+    contentType: m.contentType,
+    ratio: Number(m.ratio.toFixed(2)),
+    metric: m.metric,
+    insightTags: m.insightTags,
+    caption: m.caption?.slice(0, 220) ?? null,
+    createdAt: m.createdAt.toISOString(),
+  }));
   return {
     today: now.toISOString().slice(0, 10),
     timezone: project.user.timezone,
@@ -132,6 +167,7 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
     accounts,
     calendarAhead: {}, // popolato in una milestone successiva
     trends: { active: activeTrends },
+    learnings: { recentOutliers },
   };
 }
 
