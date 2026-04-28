@@ -140,8 +140,14 @@ export async function withProjectRoute(
 // OAuth state HMAC: serializza un payload (es. {userId, projectId, platform})
 // e lo firma con AUTH_SECRET. Usato dai connect/* per propagare projectId
 // attraverso il round-trip OAuth in modo tamper-proof.
+//
+// L-3: includiamo `iat` (issued-at, ms) e respingiamo state più vecchi di 10
+// minuti per limitare il replay-window in caso lo state venga intercettato.
+const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
 export function signOAuthState(payload: Record<string, string>): string {
-  const json = JSON.stringify(payload);
+  const enriched = { ...payload, iat: Date.now().toString() };
+  const json = JSON.stringify(enriched);
   const sig = createHmac("sha256", getSecret()).update(json).digest("hex");
   return Buffer.from(`${json}.${sig}`).toString("base64url");
 }
@@ -164,7 +170,11 @@ export function verifyOAuthState(
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
-    return parsed as Record<string, string>;
+    const record = parsed as Record<string, string>;
+    const iat = Number.parseInt(record.iat ?? "0", 10);
+    if (!Number.isFinite(iat) || iat <= 0) return null;
+    if (Date.now() - iat > OAUTH_STATE_MAX_AGE_MS) return null;
+    return record;
   } catch {
     return null;
   }

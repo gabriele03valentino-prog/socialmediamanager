@@ -19,7 +19,7 @@ export default async function DraftDetailPage({
 }) {
   const { id } = await params;
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const draft = await prisma.draft.findUnique({
     where: { id },

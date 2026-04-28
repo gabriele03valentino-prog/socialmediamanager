@@ -1,5 +1,24 @@
 import { CopyableBlock } from "@/components/CopyableBlock";
 
+/**
+ * Sanitize SVG inline rimuovendo vettori XSS comuni:
+ * - <script>...</script>
+ * - <foreignObject>...</foreignObject> (può ospitare HTML/JS)
+ * - attributi `on*=` (onload, onclick, ...)
+ * - URI `javascript:`
+ *
+ * Difesa-in-depth lato client: il backend valida già lo schema SVG via Zod,
+ * ma l'output viene da un LLM e potrebbe contenere costrutti pericolosi.
+ */
+function sanitizeSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
 interface PaletteColor {
   hex: string;
   role: string;
@@ -148,7 +167,8 @@ export function BrandIdentityView({ data }: { data: BrandIdentityData }) {
           <div className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
             <div
               className="h-32 w-32 shrink-0 rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-800 dark:bg-neutral-950"
-              dangerouslySetInnerHTML={{ __html: data.logoSvg }}
+              // SVG sanitizzato in sanitizeSvg() sopra: rimuove script/foreignObject/on*=/javascript:
+              dangerouslySetInnerHTML={{ __html: sanitizeSvg(data.logoSvg) }}
             />
             <p className="text-xs text-neutral-600 dark:text-neutral-400">
               {data.logoBrief}

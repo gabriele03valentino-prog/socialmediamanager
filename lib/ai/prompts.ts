@@ -89,7 +89,15 @@ non cambia per kind.
 
 Se il context contiene \`trends.active\`, almeno 1-2 suggerimenti settimanali devono
 agganciare un trend specifico. Cita il trend nel \`rationale\` ("aggancio al sound
-trending X"). Se l'array è vuoto, non forzare — propone solo evergreen.`;
+trending X"). Se l'array è vuoto, non forzare — propone solo evergreen.
+
+## Learning loop
+
+Se context contiene \`learnings.recentOutliers\`, modula i prossimi suggerimenti:
+- OUTLIER_HIGH: replica formula (kind+tags+caption tone) in 1-2 suggerimenti
+  settimanali. Cita nel rationale "replico format X che ha fatto Y× la media".
+- OUTLIER_LOW: evita pattern simili per ≥2 settimane. Cita nel rationale
+  "evito format X che ha avuto Y× la media (sotto baseline)".`;
 
 export const RECOMMENDER_SYSTEM_PROMPT_BLOCKS = [
   {

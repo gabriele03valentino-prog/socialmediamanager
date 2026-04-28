@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function IdentitaPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const brand = await prisma.brandIdentity.findUnique({
     where: { projectId: project.id },

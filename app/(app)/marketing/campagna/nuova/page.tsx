@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NuovaCampagnaPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

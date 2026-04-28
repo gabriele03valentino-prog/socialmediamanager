@@ -15,7 +15,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function BozzePage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const drafts = await prisma.draft.findMany({
     where: { projectId: project.id },

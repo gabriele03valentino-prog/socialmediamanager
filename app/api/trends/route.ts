@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
     const trends = await prisma.trend.findMany({
       where,
       orderBy: [{ status: "asc" }, { notedAt: "desc" }],
+      take: 200,
     });
     return NextResponse.json({ trends });
   });

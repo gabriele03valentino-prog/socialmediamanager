@@ -13,19 +13,19 @@ import { prisma } from "@/lib/db";
 describe("projects helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.EMAIL_ALLOWLIST;
+    delete process.env.AUTH_ALLOWED_EMAILS;
   });
 
   it("MAX_PROJECTS_PER_USER è 5", () => {
     expect(MAX_PROJECTS_PER_USER).toBe(5);
   });
 
-  it("isAllowlisted false se EMAIL_ALLOWLIST non set", () => {
+  it("isAllowlisted false se AUTH_ALLOWED_EMAILS non set", () => {
     expect(isAllowlisted("foo@bar.com")).toBe(false);
   });
 
   it("isAllowlisted normalizza email (lowercase + trim)", () => {
-    process.env.EMAIL_ALLOWLIST = "FOO@bar.COM, baz@qux.io";
+    process.env.AUTH_ALLOWED_EMAILS = "FOO@bar.COM, baz@qux.io";
     expect(isAllowlisted("  foo@BAR.com ")).toBe(true);
     expect(isAllowlisted("baz@qux.io")).toBe(true);
     expect(isAllowlisted("nope@nope.io")).toBe(false);
@@ -44,7 +44,7 @@ describe("projects helpers", () => {
   });
 
   it("canCreateProject true a 99 progetti se allowlisted", async () => {
-    process.env.EMAIL_ALLOWLIST = "owner@test.io";
+    process.env.AUTH_ALLOWED_EMAILS = "owner@test.io";
     (prisma.user.findUnique as any).mockResolvedValue({ email: "owner@test.io" });
     (prisma.project.count as any).mockResolvedValue(99);
     expect(await canCreateProject("u1")).toBe(true);

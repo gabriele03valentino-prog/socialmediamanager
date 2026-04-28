@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PersonaPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const personas = await prisma.persona.findMany({
     where: { projectId: project.id },

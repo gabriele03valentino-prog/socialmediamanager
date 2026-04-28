@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BrandHubPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const [brand, ideasCount] = await Promise.all([
     prisma.brandIdentity.findUnique({ where: { projectId: project.id } }),

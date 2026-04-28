@@ -19,7 +19,7 @@ export default async function MarketingHubPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
   const sp = await searchParams;
 
   const [personasCount, campaigns, avgScore] = await Promise.all([

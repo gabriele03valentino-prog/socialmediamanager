@@ -43,39 +43,48 @@ export async function POST(req: NextRequest) {
     }
     const count = parsed.data.count ?? 5;
 
-    const proposed = await suggestTrends(
-      {
-        id: project.id,
-        kind: project.kind,
-        niche: project.niche,
-        displayName: project.displayName,
-      },
-      parsed.data.kind,
-      count,
-    );
+    try {
+      const proposed = await suggestTrends(
+        {
+          id: project.id,
+          kind: project.kind,
+          niche: project.niche,
+          displayName: project.displayName,
+        },
+        parsed.data.kind,
+        count,
+      );
 
-    if (proposed.length === 0) {
-      return NextResponse.json({ trends: [] });
+      if (proposed.length === 0) {
+        return NextResponse.json({ trends: [] });
+      }
+
+      const now = Date.now();
+      const created = await prisma.$transaction(
+        proposed.map((t) =>
+          prisma.trend.create({
+            data: {
+              projectId: project.id,
+              kind: t.kind,
+              name: t.name,
+              description: t.description,
+              platforms: t.platforms,
+              status: "WARMING",
+              expiresAt: new Date(now + t.expiresInDays * 24 * 60 * 60 * 1000),
+              generatedBy: TRENDS_MODEL,
+            },
+          }),
+        ),
+      );
+
+      return NextResponse.json({ trends: created });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[trends/suggest] anthropic failed", err);
+      return NextResponse.json(
+        { error: "anthropic_failed", details: msg },
+        { status: 502 },
+      );
     }
-
-    const now = Date.now();
-    const created = await prisma.$transaction(
-      proposed.map((t) =>
-        prisma.trend.create({
-          data: {
-            projectId: project.id,
-            kind: t.kind,
-            name: t.name,
-            description: t.description,
-            platforms: t.platforms,
-            status: "WARMING",
-            expiresAt: new Date(now + t.expiresInDays * 24 * 60 * 60 * 1000),
-            generatedBy: TRENDS_MODEL,
-          },
-        }),
-      ),
-    );
-
-    return NextResponse.json({ trends: created });
   });
 }

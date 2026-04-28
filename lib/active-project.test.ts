@@ -162,11 +162,18 @@ describe("requireActiveProject", () => {
 describe("OAuth state HMAC", () => {
   beforeEach(() => {
     process.env.AUTH_SECRET = "test_secret_for_unit_tests_only_xxxxx";
+    vi.useRealTimers();
   });
 
-  it("signOAuthState + verifyOAuthState round-trip", () => {
+  it("signOAuthState + verifyOAuthState round-trip preserva i campi originali", () => {
     const state = signOAuthState({ userId: "u1", projectId: "p1", platform: "tiktok" });
-    expect(verifyOAuthState(state)).toEqual({ userId: "u1", projectId: "p1", platform: "tiktok" });
+    const parsed = verifyOAuthState(state);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.userId).toBe("u1");
+    expect(parsed!.projectId).toBe("p1");
+    expect(parsed!.platform).toBe("tiktok");
+    // iat aggiunto da signOAuthState (L-3): timestamp ms come stringa.
+    expect(parsed!.iat).toMatch(/^\d+$/);
   });
 
   it("verifyOAuthState rejects tampered state", () => {
@@ -177,5 +184,21 @@ describe("OAuth state HMAC", () => {
 
   it("verifyOAuthState rejects garbage", () => {
     expect(verifyOAuthState("garbage")).toBeNull();
+  });
+
+  it("verifyOAuthState rejects state più vecchio di 10 minuti (L-3 replay-window)", () => {
+    vi.useFakeTimers();
+    const t0 = new Date("2026-04-27T10:00:00Z");
+    vi.setSystemTime(t0);
+    const state = signOAuthState({ userId: "u1", projectId: "p1" });
+    // Avanza di 11 minuti
+    vi.setSystemTime(new Date(t0.getTime() + 11 * 60 * 1000));
+    expect(verifyOAuthState(state)).toBeNull();
+    // Sanity: a 9 min è ancora valido
+    vi.setSystemTime(t0);
+    const state2 = signOAuthState({ userId: "u1", projectId: "p1" });
+    vi.setSystemTime(new Date(t0.getTime() + 9 * 60 * 1000));
+    expect(verifyOAuthState(state2)).not.toBeNull();
+    vi.useRealTimers();
   });
 });

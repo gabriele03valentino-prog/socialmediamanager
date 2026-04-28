@@ -7,11 +7,12 @@ export const dynamic = "force-dynamic";
 
 export default async function TrendPage() {
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const trends = await prisma.trend.findMany({
     where: { projectId: project.id },
     orderBy: { notedAt: "desc" },
+    take: 200,
   });
 
   const active = trends.filter((t) => t.status === "ACTIVE");

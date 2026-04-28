@@ -18,7 +18,7 @@ export default async function AnalyticsPage({
   if (!VALID.includes(platform)) notFound();
 
   const project = await getActiveProject();
-  if (!project) redirect("/progetti?create=1");
+  if (!project) redirect("/onboarding");
 
   const account = await prisma.socialAccount.findFirst({
     where: { projectId: project.id, platform },
