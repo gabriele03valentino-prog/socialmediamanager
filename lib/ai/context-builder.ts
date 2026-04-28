@@ -1,4 +1,4 @@
-import type { ArtistProfile, Platform } from "@prisma/client";
+import type { Project, Platform, CreatorKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 // Costruisce il JSON di contesto che diamo a Claude.
@@ -32,12 +32,12 @@ export interface AccountSummary {
 export interface RecommenderContext {
   today: string; // YYYY-MM-DD
   timezone: string;
-  artist: {
-    stageName: string;
-    genre: string;
+  project: {
+    kind: CreatorKind;
+    displayName: string;
+    niche?: string | null;
     city?: string | null;
     bio?: string | null;
-    goals?: unknown;
   };
   accounts: AccountSummary[];
   calendarAhead: {
@@ -46,11 +46,11 @@ export interface RecommenderContext {
   };
 }
 
-export async function buildContext(userId: string): Promise<RecommenderContext> {
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
+export async function buildContext(projectId: string): Promise<RecommenderContext> {
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
     include: {
-      artistProfile: true,
+      user: { select: { timezone: true } },
       socialAccounts: {
         include: {
           metrics: { orderBy: { capturedAt: "desc" }, take: 30 },
@@ -63,14 +63,7 @@ export async function buildContext(userId: string): Promise<RecommenderContext> 
     },
   });
 
-  const artist: RecommenderContext["artist"] = user.artistProfile
-    ? artistFromProfile(user.artistProfile)
-    : {
-        stageName: user.name ?? "Artista",
-        genre: "non specificato",
-      };
-
-  const accounts: AccountSummary[] = user.socialAccounts.map((a) => {
+  const accounts: AccountSummary[] = project.socialAccounts.map((a) => {
     const latest = a.metrics[0];
     const delta7 = diffFollowers(a.metrics, 7);
     const delta30 = diffFollowers(a.metrics, 30);
@@ -115,20 +108,16 @@ export async function buildContext(userId: string): Promise<RecommenderContext> 
   const now = new Date();
   return {
     today: now.toISOString().slice(0, 10),
-    timezone: user.timezone,
-    artist,
+    timezone: project.user.timezone,
+    project: {
+      kind: project.kind,
+      displayName: project.displayName,
+      niche: project.niche,
+      city: project.city,
+      bio: project.bio,
+    },
     accounts,
     calendarAhead: {}, // popolato in una milestone successiva
-  };
-}
-
-function artistFromProfile(p: ArtistProfile): RecommenderContext["artist"] {
-  return {
-    stageName: p.stageName,
-    genre: p.genre,
-    city: p.city,
-    bio: p.bio,
-    goals: p.goals,
   };
 }
 

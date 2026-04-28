@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { buildICalendar } from "@/lib/export";
+import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,14 +30,21 @@ function timingSafeEqual(a: string, b: string): boolean {
  *
  * NON accettiamo `userId` come parametro per evitare IDOR: chiunque conoscesse
  * la key potrebbe passare un id arbitrario e scaricare calendari altrui.
+ *
+ * Multi-progetto (M16): la key resta legata a un singolo userId. Per scegliere
+ * il progetto si può passare `?projectId=<id>` (deve appartenere a quell'utente);
+ * se assente si usa il primo progetto in ordine di creazione (default sicuro).
+ * Senza progetto disponibile → 404.
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const providedKey = url.searchParams.get("key");
   const expectedKey = process.env.CALENDAR_FEED_KEY;
   const ownerId = process.env.CALENDAR_FEED_OWNER_ID;
+  const requestedProjectId = url.searchParams.get("projectId");
 
   let userId: string | undefined;
+  let usingFeedKey = false;
   if (
     providedKey &&
     expectedKey &&
@@ -43,6 +52,7 @@ export async function GET(req: Request) {
     timingSafeEqual(providedKey, expectedKey)
   ) {
     userId = ownerId;
+    usingFeedKey = true;
   } else {
     const session = await auth();
     userId = session?.user?.id;
@@ -52,13 +62,45 @@ export async function GET(req: Request) {
     return new Response("unauthorized", { status: 401 });
   }
 
+  // Risolvi il progetto: se passato esplicitamente verifica appartenenza,
+  // altrimenti default = primo progetto dell'utente.
+  let project: { id: string; displayName: string } | null = null;
+  if (requestedProjectId) {
+    const found = await prisma.project.findUnique({
+      where: { id: requestedProjectId },
+      select: { id: true, displayName: true, userId: true },
+    });
+    if (!found || found.userId !== userId) {
+      return new Response("project_not_found", { status: 404 });
+    }
+    project = { id: found.id, displayName: found.displayName };
+  } else if (usingFeedKey) {
+    // Feed-key flow: non c'è cookie attivo → primo progetto dell'utente.
+    const first = await prisma.project.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, displayName: true },
+    });
+    project = first;
+  } else {
+    // Sessione utente: rispetta il cookie active_project_id, fallback al primo.
+    const active = await getActiveProject(req);
+    if (active) {
+      project = { id: active.id, displayName: active.displayName };
+    }
+  }
+
+  if (!project) {
+    return new Response("no_project", { status: 404 });
+  }
+
   const [drafts, suggestions] = await Promise.all([
     prisma.draft.findMany({
-      where: { userId, scheduledFor: { not: null } },
+      where: { projectId: project.id, scheduledFor: { not: null } },
       orderBy: { scheduledFor: "asc" },
     }),
     prisma.suggestion.findMany({
-      where: { userId, status: "PROPOSED" },
+      where: { projectId: project.id, status: "PROPOSED" },
       orderBy: { forDate: "asc" },
     }),
   ]);
@@ -67,6 +109,7 @@ export async function GET(req: Request) {
     drafts,
     suggestions,
     appUrl: process.env.NEXTAUTH_URL ?? "https://localhost:3000",
+    projectLabel: project.displayName,
   });
 
   return new Response(ics, {

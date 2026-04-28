@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { generatePersonas } from "@/lib/ai/marketing/persona";
 import { prisma } from "@/lib/db";
 import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
@@ -8,83 +9,78 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "marketing.persona",
-    LIMITS.marketingPersona,
-  );
-  if (limited) return limited;
-
   const userId = session.user.id;
-  const [profile, audiences] = await Promise.all([
-    prisma.artistProfile.findUnique({ where: { userId } }),
-    prisma.audienceInsight.findMany({
-      where: { account: { userId } },
+
+  return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "marketing.persona",
+      LIMITS.marketingPersona,
+      project.id,
+    );
+    if (limited) return limited;
+
+    const audiences = await prisma.audienceInsight.findMany({
+      where: { account: { projectId: project.id } },
       orderBy: { capturedAt: "desc" },
       take: 5,
-    }),
-  ]);
-
-  if (!profile) {
-    return NextResponse.json(
-      { error: "artist_profile_missing" },
-      { status: 400 },
-    );
-  }
-
-  const audienceData =
-    audiences.length > 0
-      ? {
-          sources: audiences.map((a) => ({
-            ageBuckets: a.ageBuckets,
-            genderSplit: a.genderSplit,
-            topCountries: a.topCountries,
-          })),
-        }
-      : undefined;
-
-  try {
-    const personas = await generatePersonas({
-      artist: {
-        stageName: profile.stageName,
-        genre: profile.genre,
-        city: profile.city,
-        bio: profile.bio,
-      },
-      audienceData,
-      goals: profile.goals ?? undefined,
     });
 
-    // Sostituiamo le vecchie personas con le nuove (tiene coerenza)
-    await prisma.$transaction([
-      prisma.persona.deleteMany({ where: { userId } }),
-      ...personas.map((p) =>
-        prisma.persona.create({
-          data: {
-            userId,
-            name: p.name,
-            ageRange: p.ageRange,
-            location: p.location,
-            occupation: p.occupation,
-            musicHabits: p.musicHabits,
-            platforms: p.platforms,
-            listeningTimes: p.listeningTimes,
-            triggers: p.triggers as never,
-            culturalRefs: p.culturalRefs as never,
-            generatedBy: "claude-sonnet-4-6",
-          },
-        }),
-      ),
-    ]);
+    const audienceData =
+      audiences.length > 0
+        ? {
+            sources: audiences.map((a) => ({
+              ageBuckets: a.ageBuckets,
+              genderSplit: a.genderSplit,
+              topCountries: a.topCountries,
+            })),
+          }
+        : undefined;
 
-    return NextResponse.json({ ok: true, count: personas.length });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+    try {
+      const personas = await generatePersonas({
+        project: {
+          id: project.id,
+          kind: project.kind,
+          displayName: project.displayName,
+          niche: project.niche,
+          city: project.city,
+          bio: project.bio,
+        },
+        audienceData,
+      });
+
+      // Sostituiamo le vecchie personas con le nuove (tiene coerenza)
+      await prisma.$transaction([
+        prisma.persona.deleteMany({ where: { projectId: project.id } }),
+        ...personas.map((p) =>
+          prisma.persona.create({
+            data: {
+              projectId: project.id,
+              name: p.name,
+              ageRange: p.ageRange,
+              location: p.location,
+              occupation: p.occupation,
+              musicHabits: p.musicHabits,
+              platforms: p.platforms,
+              listeningTimes: p.listeningTimes,
+              triggers: p.triggers as never,
+              culturalRefs: p.culturalRefs as never,
+              generatedBy: "claude-sonnet-4-6",
+            },
+          }),
+        ),
+      ]);
+
+      return NextResponse.json({ ok: true, count: personas.length });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  });
 }

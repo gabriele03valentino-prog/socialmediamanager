@@ -1,4 +1,5 @@
 import type { Platform } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { BestTimeHeatmap, type HeatCell } from "@/components/BestTimeHeatmap";
 import { type FollowerSeries, FollowerChart } from "@/components/FollowerChart";
@@ -6,6 +7,7 @@ import { KpiCard } from "@/components/KpiCard";
 import { SuggestionCard } from "@/components/SuggestionCard";
 import { SyncButton } from "@/components/SyncButton";
 import { TopPostsList, type TopPostItem } from "@/components/TopPostsList";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
@@ -31,14 +33,14 @@ function engagementOf(p: {
 
 export default async function DashboardPage() {
   const session = await auth();
-  if (!session?.user?.id) return null;
-  const userId = session.user.id;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 
   const [accounts, recentPosts] = await Promise.all([
     prisma.socialAccount.findMany({
-      where: { userId },
+      where: { projectId: project.id },
       include: {
         metrics: {
           where: { capturedAt: { gte: thirtyDaysAgo } },
@@ -47,32 +49,31 @@ export default async function DashboardPage() {
       },
     }),
     prisma.post.findMany({
-      where: { account: { userId }, postedAt: { gte: thirtyDaysAgo } },
+      where: {
+        account: { projectId: project.id },
+        postedAt: { gte: thirtyDaysAgo },
+      },
       include: { account: true },
     }),
   ]);
 
   const [nextSuggestion, latestFeedback] = await Promise.all([
     prisma.suggestion.findFirst({
-      where: { userId, status: "PROPOSED" },
+      where: { projectId: project.id, status: "PROPOSED" },
       orderBy: { forDate: "asc" },
     }),
     prisma.dailyFeedback.findFirst({
-      where: { userId },
+      where: { projectId: project.id },
       orderBy: { forDate: "desc" },
     }),
   ]);
 
   const byPlatform = new Map(accounts.map((a) => [a.platform, a] as const));
-  const artistProfile = await prisma.artistProfile.findUnique({
-    where: { userId },
-  });
   const onboarding = {
-    profile: !!artistProfile,
     anyAccount: accounts.length > 0,
     anyMetrics: accounts.some((a) => a.metrics.length > 0),
   };
-  const showOnboarding = !onboarding.profile || !onboarding.anyAccount;
+  const showOnboarding = !onboarding.anyAccount;
 
   // KPI + delta per piattaforma
   function kpiFor(platform: Platform) {
@@ -157,7 +158,7 @@ export default async function DashboardPage() {
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">
-            Ciao {session.user.name?.split(" ")[0] ?? ""} 👋
+            Ciao {session?.user?.name?.split(" ")[0] ?? ""} 👋
           </h1>
           <p className="text-sm text-neutral-500">
             Stato dei tuoi canali, top post degli ultimi 30 giorni e prossimo contenuto
@@ -171,17 +172,14 @@ export default async function DashboardPage() {
         <section className="rounded-xl border border-brand-200 bg-brand-50 p-6 dark:border-brand-700/40 dark:bg-brand-700/10">
           <h2 className="mb-2 font-semibold">Setup iniziale</h2>
           <ol className="space-y-2 text-sm">
-            <li className={onboarding.profile ? "text-neutral-400 line-through" : ""}>
-              1. <a href="/impostazioni/profilo" className="text-brand-700 underline dark:text-brand-100">Compila il profilo artista</a> (stage name, genere, obiettivi)
-            </li>
-            <li className={onboarding.anyAccount ? "text-neutral-400 line-through" : ""}>
-              2. <a href="/impostazioni" className="text-brand-700 underline dark:text-brand-100">Collega almeno un account social</a>
+            <li>
+              1. <a href="/impostazioni" className="text-brand-700 underline dark:text-brand-100">Collega almeno un account social</a>
             </li>
             <li>
-              3. Aspetta il primo sync o cliccalo dal pulsante in alto a destra
+              2. Aspetta il primo sync o cliccalo dal pulsante in alto a destra
             </li>
             <li>
-              4. <a href="/suggerimenti" className="text-brand-700 underline dark:text-brand-100">Genera il primo piano settimanale</a> con Claude
+              3. <a href="/suggerimenti" className="text-brand-700 underline dark:text-brand-100">Genera il primo piano settimanale</a> con Claude
             </li>
           </ol>
         </section>

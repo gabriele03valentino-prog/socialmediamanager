@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { verifyOAuthState } from "@/lib/active-project";
 import { encryptToken } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import {
@@ -11,8 +11,6 @@ import {
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const STATE_COOKIE = "youtube_oauth_state";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -28,10 +26,19 @@ export async function GET(req: Request) {
   if (error) return redirectToSettings(url, { error });
   if (!code || !state) return redirectToSettings(url, { error: "missing_code" });
 
-  const cookieStore = await cookies();
-  const cookieState = cookieStore.get(STATE_COOKIE)?.value;
-  if (!cookieState || cookieState !== state) {
+  const decoded = verifyOAuthState(state);
+  if (!decoded || !decoded.userId || !decoded.projectId) {
     return redirectToSettings(url, { error: "state_mismatch" });
+  }
+  if (decoded.userId !== session.user.id) {
+    return redirectToSettings(url, { error: "state_mismatch" });
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: decoded.projectId },
+  });
+  if (!project || project.userId !== session.user.id) {
+    return redirectToSettings(url, { error: "project_not_owned" });
   }
 
   const clientId = process.env.AUTH_GOOGLE_ID;
@@ -63,14 +70,14 @@ export async function GET(req: Request) {
 
     await prisma.socialAccount.upsert({
       where: {
-        userId_platform_externalId: {
-          userId: session.user.id,
+        projectId_platform_externalId: {
+          projectId: project.id,
           platform: "YOUTUBE",
           externalId: channel.id,
         },
       },
       create: {
-        userId: session.user.id,
+        projectId: project.id,
         platform: "YOUTUBE",
         handle: channel.customUrl ?? channel.title,
         externalId: channel.id,
@@ -114,7 +121,5 @@ function redirectToSettings(
 ): NextResponse {
   const target = new URL("/impostazioni", base.origin);
   for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
-  const res = NextResponse.redirect(target);
-  res.cookies.delete(STATE_COOKIE);
-  return res;
+  return NextResponse.redirect(target);
 }

@@ -1,30 +1,21 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
-import { syncAccount } from "@/lib/sync";
+import { withProjectRoute } from "@/lib/active-project";
+import { syncProjectAccounts } from "@/lib/sync";
 
-// POST /api/metrics/sync          → sincronizza tutti gli account dell'utente
-// POST /api/metrics/sync?accountId → solo uno specifico
-export async function POST(req: Request) {
+// POST /api/metrics/sync                  → sincronizza tutti gli account del project attivo
+// POST /api/metrics/sync?accountId=...    → solo lo specifico account (sempre filtrato per project)
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(req.url);
-  const accountId = url.searchParams.get("accountId");
+  return withProjectRoute(req, async (project) => {
+    const url = new URL(req.url);
+    const accountId = url.searchParams.get("accountId") ?? undefined;
 
-  const accounts = await prisma.socialAccount.findMany({
-    where: accountId
-      ? { id: accountId, userId: session.user.id }
-      : { userId: session.user.id },
+    const results = await syncProjectAccounts(project.id, { accountId });
+    return NextResponse.json({ ok: true, results });
   });
-
-  const results = [];
-  for (const a of accounts) {
-    const r = await syncAccount(a);
-    results.push({ accountId: a.id, platform: a.platform, ...r });
-  }
-
-  return NextResponse.json({ ok: true, results });
 }

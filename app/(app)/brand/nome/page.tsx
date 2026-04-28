@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { StageNameWizard } from "@/components/StageNameWizard";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import type { HandleStatus } from "@/lib/handle-check";
 
 export const dynamic = "force-dynamic";
 
 export default async function StageNamePage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const ideas = await prisma.stageNameIdea.findMany({
-    where: { userId: session.user.id },
+    where: { projectId: project.id },
     orderBy: [{ chosen: "desc" }, { createdAt: "desc" }],
     take: 50,
   });

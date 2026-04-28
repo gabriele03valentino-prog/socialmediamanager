@@ -5,6 +5,7 @@ import {
   Brain,
   Calendar,
   FileText,
+  FolderKanban,
   LayoutDashboard,
   Lightbulb,
   Menu,
@@ -16,7 +17,9 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { Project } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -24,13 +27,20 @@ const NAV = [
   { href: "/suggerimenti", label: "Suggerimenti", icon: Lightbulb },
   { href: "/bozze", label: "Bozze", icon: FileText },
   { href: "/obiettivi", label: "Obiettivi", icon: Target },
+  { href: "/progetti", label: "Progetti", icon: FolderKanban },
   { href: "/brand", label: "Brand", icon: Palette },
   { href: "/marketing", label: "Marketing", icon: Brain },
   { href: "/analytics/instagram", label: "Analytics", icon: BarChart3 },
   { href: "/impostazioni", label: "Impostazioni", icon: Settings },
 ] as const;
 
-export function SidebarNav({ children }: { children?: React.ReactNode }) {
+interface SidebarNavProps {
+  activeProject: Project;
+  projects: Pick<Project, "id" | "displayName" | "kind">[];
+  children?: React.ReactNode;
+}
+
+export function SidebarNav({ activeProject, projects, children }: SidebarNavProps) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
 
@@ -75,7 +85,7 @@ export function SidebarNav({ children }: { children?: React.ReactNode }) {
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="mb-6 flex items-center justify-between md:mb-8">
+        <div className="mb-4 flex items-center justify-between md:mb-6">
           <Link href="/" className="flex items-center gap-2 px-2">
             <div className="h-8 w-8 rounded-lg bg-brand-600" />
             <span className="font-semibold">SMM Studio</span>
@@ -88,6 +98,9 @@ export function SidebarNav({ children }: { children?: React.ReactNode }) {
           >
             <X className="h-5 w-5" />
           </button>
+        </div>
+        <div className="mb-4">
+          <ProjectSwitcher active={activeProject} projects={projects} />
         </div>
         <ul className="space-y-1">
           {NAV.map((item) => {

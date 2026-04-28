@@ -109,10 +109,10 @@ const PROPOSE_PLAN_TOOL = {
   },
 } as const;
 
-export async function generateWeeklyPlan(userId: string): Promise<number> {
-  const ctx = await buildContext(userId);
+export async function generateWeeklyPlan(projectId: string): Promise<number> {
+  const ctx = await buildContext(projectId);
 
-  const userMessage = `Ecco il contesto attuale dell'artista in formato JSON. Genera il piano settimanale chiamando il tool propose_weekly_plan.
+  const userMessage = `Ecco il contesto attuale del progetto in formato JSON. Genera il piano settimanale chiamando il tool propose_weekly_plan.
 
 \`\`\`json
 ${JSON.stringify(ctx, null, 2)}
@@ -145,7 +145,7 @@ ${JSON.stringify(ctx, null, 2)}
     suggestions.map((s) =>
       prisma.suggestion.create({
         data: {
-          userId,
+          projectId,
           forDate: new Date(`${s.forDate}T00:00:00Z`),
           platform: s.platform,
           contentType: s.contentType,

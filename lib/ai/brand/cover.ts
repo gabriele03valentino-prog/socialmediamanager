@@ -1,6 +1,21 @@
+import type { CreatorKind } from "@prisma/client";
 import { z } from "zod";
+import { getKindLabels, KIND_DISPLAY } from "@/lib/kind-labels";
 import { anthropic, BRAND_MODEL } from "./claude";
 import { BRAND_SYSTEM_BLOCKS } from "./prompts";
+
+/**
+ * Project shape consumed dal modulo brand/cover (M16).
+ * Sostituisce il vecchio lookup ArtistProfile via userId.
+ */
+export interface CoverProject {
+  id: string;
+  kind: CreatorKind;
+  displayName: string;
+  niche: string | null;
+  city: string | null;
+  bio: string | null;
+}
 
 export const CoverInputSchema = z.object({
   releaseTitle: z.string().min(1),
@@ -8,11 +23,15 @@ export const CoverInputSchema = z.object({
   mood: z.string().min(1),
   story: z.string().min(5).max(1000),
   keywords: z.array(z.string()).min(1).max(6),
-  // Identità dell'artista (presa da BrandIdentity se presente)
+  // Identità del creator (presa da BrandIdentity se presente)
   palette: z.array(z.string()).max(6).optional(), // hex values
   moodKeywordsBrand: z.array(z.string()).max(10).optional(),
 });
-export type CoverInput = z.infer<typeof CoverInputSchema>;
+export type CoverInputBody = z.infer<typeof CoverInputSchema>;
+
+export interface CoverInput extends CoverInputBody {
+  project: CoverProject;
+}
 
 export const CoverBriefSchema = z.object({
   title: z.string(),
@@ -26,7 +45,7 @@ export type CoverBriefOutput = z.infer<typeof CoverBriefSchema>;
 const TOOL = {
   name: "generate_cover_brief",
   description:
-    "Genera brief per la copertina di una release musicale, coerente con la brand identity dell'artista.",
+    "Genera brief per la cover/thumbnail di una release/episodio/contenuto, coerente con la brand identity del creator.",
   input_schema: {
     type: "object",
     required: [
@@ -39,7 +58,7 @@ const TOOL = {
     properties: {
       title: {
         type: "string",
-        description: "Titolo della release, ecoato per riferimento",
+        description: "Titolo della release/contenuto, ecoato per riferimento",
       },
       brief: {
         type: "string",
@@ -49,12 +68,12 @@ const TOOL = {
       claudeDesignPrompt: {
         type: "string",
         description:
-          "Prompt copia-incollabile in claude.ai/design per generare la cover, 1:1 formato album. Include palette hex e riferimenti visivi.",
+          "Prompt copia-incollabile in claude.ai/design per generare la cover. Include palette hex e riferimenti visivi.",
       },
       mjPrompt: {
         type: "string",
         description:
-          "Prompt Midjourney ottimizzato (soggetto, medium, dettagli, lighting, camera, --ar 1:1 --style raw --v 6)",
+          "Prompt Midjourney ottimizzato (soggetto, medium, dettagli, lighting, camera, --ar adatto al formato, --style raw --v 6)",
       },
       ideogramPrompt: {
         type: "string",
@@ -65,21 +84,106 @@ const TOOL = {
   },
 } as const;
 
+/**
+ * Restituisce il "tipo di artwork" da generare in funzione del kind del creator.
+ * Influenza titolo del brief, formato consigliato e linguaggio del prompt.
+ */
+function coverKindFor(kind: CreatorKind): {
+  artworkLabel: string;
+  format: string;
+  thumbContext: string;
+} {
+  switch (kind) {
+    case "ARTIST":
+      return {
+        artworkLabel: "cover singolo / EP / album",
+        format: "1:1 (Spotify/Apple Music)",
+        thumbContext: "thumb 120x120 leggibile in feed Spotify/Apple Music",
+      };
+    case "YOUTUBER":
+      return {
+        artworkLabel: "thumbnail video YouTube",
+        format: "16:9 (1280x720, YouTube)",
+        thumbContext: "thumb leggibile a 246x138 in home/sidebar YouTube",
+      };
+    case "PODCASTER":
+      return {
+        artworkLabel: "cover episodio podcast",
+        format: "1:1 (Spotify/Apple Podcasts)",
+        thumbContext: "thumb 120x120 leggibile nelle app podcast",
+      };
+    case "INFLUENCER":
+      return {
+        artworkLabel: "cover post/reel principale",
+        format: "1:1 o 9:16 (IG/TikTok)",
+        thumbContext: "thumb leggibile in griglia profilo IG (110x110)",
+      };
+    case "DIVULGATORE":
+      return {
+        artworkLabel: "thumbnail video / cover carousel didattico",
+        format: "16:9 video, 1:1 carousel",
+        thumbContext: "leggibile sia su YouTube sia su feed IG",
+      };
+    case "BRAND":
+      return {
+        artworkLabel: "cover campagna / key visual",
+        format: "1:1 + adattamento 9:16 e 16:9",
+        thumbContext: "leggibile in griglia profilo e ad-preview",
+      };
+    default:
+      return {
+        artworkLabel: "cover contenuto",
+        format: "1:1",
+        thumbContext: "thumb 120x120 leggibile",
+      };
+  }
+}
+
 export async function generateCoverBrief(
   input: CoverInput,
 ): Promise<CoverBriefOutput> {
-  const userMessage = `Genera il brief per la copertina di questa release:
+  const { project } = input;
+  const labels = getKindLabels(project.kind);
+  const kindDisplay = KIND_DISPLAY[project.kind];
+  const coverKind = coverKindFor(project.kind);
+
+  const promptPayload = {
+    kind: project.kind,
+    kindLabel: labels.creator,
+    kindDisplay,
+    artworkLabel: coverKind.artworkLabel,
+    format: coverKind.format,
+    creator: {
+      displayName: project.displayName,
+      niche: project.niche,
+      city: project.city,
+    },
+    release: {
+      title: input.releaseTitle,
+      type: input.releaseType,
+      mood: input.mood,
+      story: input.story,
+      keywords: input.keywords,
+    },
+    brand: {
+      palette: input.palette,
+      moodKeywordsBrand: input.moodKeywordsBrand,
+    },
+  };
+
+  const userMessage = `Genera il brief per la **${coverKind.artworkLabel}** di questo contenuto di un ${labels.creator} (${kindDisplay}):
 
 \`\`\`json
-${JSON.stringify(input, null, 2)}
+${JSON.stringify(promptPayload, null, 2)}
 \`\`\`
 
 La copertina deve:
-- Essere memorabile al primo scroll su Spotify/Apple Music (thumb 120x120 leggibile)
-- Raccontare in un colpo d'occhio il mood del brano
+- Essere memorabile al primo scroll (${coverKind.thumbContext})
+- Formato target: ${coverKind.format}
+- Raccontare in un colpo d'occhio il mood del contenuto
 - Essere coerente con la brand identity (palette + moodKeywordsBrand se forniti)
-- Evitare cliché del genere (es. foto dell'artista in primo piano per trap = visto mille volte)
-- Ogni prompt (Claude/Midjourney/Ideogram) deve essere ottimizzato per quel tool specifico.`;
+- Evitare cliché del kind (es. foto del volto in primo piano per trap = visto mille volte; per YOUTUBER thumbnail urlante = saturo)
+- Ogni prompt (Claude/Midjourney/Ideogram) deve essere ottimizzato per quel tool specifico, includendo l'aspect ratio corretto per il kind.`;
 
   const response = await anthropic().messages.create({
     model: BRAND_MODEL,

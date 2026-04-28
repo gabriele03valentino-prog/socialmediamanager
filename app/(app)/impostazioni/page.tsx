@@ -1,6 +1,7 @@
 import type { Platform } from "@prisma/client";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { ConnectAccountButton } from "@/components/ConnectAccountButton";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -12,14 +13,17 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const sp = await searchParams;
 
-  const [profile, accounts] = await Promise.all([
-    prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
-    prisma.socialAccount.findMany({ where: { userId: session.user.id } }),
+  const [user, accounts] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: project.userId },
+      select: { timezone: true },
+    }),
+    prisma.socialAccount.findMany({ where: { projectId: project.id } }),
   ]);
 
   const byPlatform = new Map<Platform, (typeof accounts)[number]>();
@@ -30,8 +34,12 @@ export default async function SettingsPage({
       <header>
         <h1 className="text-2xl font-semibold">Impostazioni</h1>
         <p className="text-sm text-neutral-500">
-          Collega i tuoi profili e compila il tuo profilo artistico per migliorare i
-          suggerimenti.
+          Collega gli account social del progetto attivo. I dati del progetto si
+          modificano da{" "}
+          <a href="/progetti" className="text-brand-600 hover:underline">
+            Progetti
+          </a>
+          .
         </p>
       </header>
 
@@ -107,55 +115,23 @@ export default async function SettingsPage({
         </div>
       ) : null}
 
-      {sp.profile === "saved" ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-100">
-          ✅ Profilo artista salvato.
-        </div>
-      ) : null}
-
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          Profilo artista
+          Fuso orario
         </h2>
         <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900">
-          {profile ? (
-            <>
-              <dl className="grid grid-cols-2 gap-y-2">
-                <dt className="text-neutral-500">Stage name</dt>
-                <dd>{profile.stageName}</dd>
-                <dt className="text-neutral-500">Genere</dt>
-                <dd>{profile.genre}</dd>
-                {profile.city && (
-                  <>
-                    <dt className="text-neutral-500">Città</dt>
-                    <dd>{profile.city}</dd>
-                  </>
-                )}
-              </dl>
-              <a
-                href="/impostazioni/profilo"
-                className="mt-3 inline-block text-sm text-brand-600 hover:underline"
-              >
-                Modifica →
-              </a>
-            </>
-          ) : (
-            <p>
-              Nessun profilo creato.{" "}
-              <a
-                href="/impostazioni/profilo"
-                className="text-brand-600 hover:underline"
-              >
-                Compila ora →
-              </a>
-            </p>
-          )}
+          <p>
+            <strong>{user?.timezone ?? "Europe/Rome"}</strong>
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Usato per orari suggeriti, cron giornaliero ed export .ics.
+          </p>
         </div>
       </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          Account social
+          Account social del progetto
         </h2>
         <div className="space-y-2">
           {PLATFORMS.map((p) => {

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { notFound, redirect } from "next/navigation";
 import { DraftEditor } from "@/components/DraftEditor";
 import { NeuroScoreSection } from "@/components/NeuroScoreSection";
 import {
@@ -8,6 +7,7 @@ import {
   parseNeuroImprovements,
   type NeuroScoreData,
 } from "@/lib/ai/marketing/types";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +18,14 @@ export default async function DraftDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const draft = await prisma.draft.findUnique({
     where: { id },
     include: { neuroScore: true },
   });
-  if (!draft || draft.userId !== session.user.id) notFound();
+  if (!draft || draft.projectId !== project.id) notFound();
 
   const neuroData: NeuroScoreData | null = draft.neuroScore
     ? {

@@ -38,7 +38,7 @@ export interface GoalProgress {
  */
 export async function getGoalProgress(goal: Goal): Promise<GoalProgress> {
   const account = await prisma.socialAccount.findFirst({
-    where: { userId: goal.userId, platform: goal.platform },
+    where: { projectId: goal.projectId, platform: goal.platform },
     orderBy: { createdAt: "asc" },
   });
 
@@ -175,13 +175,17 @@ export async function evaluateGoal(goal: Goal): Promise<{
   return { changed: false, status: "ACTIVE" };
 }
 
-export async function evaluateAllActiveGoals(userId: string): Promise<{
+/**
+ * Valuta tutti i goal ACTIVE di un singolo Project. Pensata per il cron T18,
+ * che itera sui progetti dell'utente (non più sull'utente direttamente).
+ */
+export async function evaluateProjectGoals(projectId: string): Promise<{
   evaluated: number;
   changed: number;
   errors: number;
 }> {
   const goals = await prisma.goal.findMany({
-    where: { userId, status: "ACTIVE" },
+    where: { projectId, status: "ACTIVE" },
   });
   let changed = 0;
   let errors = 0;
@@ -217,16 +221,16 @@ export type CreateGoalInput = Pick<
   "platform" | "metric" | "targetValue" | "targetDate" | "note"
 >;
 
-export async function createGoalForUser(
-  userId: string,
+export async function createGoalForProject(
+  projectId: string,
   input: CreateGoalInput,
 ): Promise<Goal> {
   // Calcoliamo lo startValue dal MetricSnapshot/Post più recente, così la
   // percentuale di completamento è onesta dal giorno 1.
-  const startValue = await computeCurrentValue(userId, input.platform!, input.metric!);
+  const startValue = await computeCurrentValue(projectId, input.platform!, input.metric!);
   return prisma.goal.create({
     data: {
-      userId,
+      projectId,
       platform: input.platform!,
       metric: input.metric!,
       targetValue: input.targetValue!,
@@ -238,12 +242,12 @@ export async function createGoalForUser(
 }
 
 async function computeCurrentValue(
-  userId: string,
+  projectId: string,
   platform: Platform,
   metric: GoalMetric,
 ): Promise<number> {
   const account = await prisma.socialAccount.findFirst({
-    where: { userId, platform },
+    where: { projectId, platform },
     orderBy: { createdAt: "asc" },
   });
   if (!account) return 0;

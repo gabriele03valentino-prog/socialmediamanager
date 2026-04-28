@@ -1,17 +1,32 @@
+import type { CreatorKind } from "@prisma/client";
 import { z } from "zod";
+import { getKindLabels, KIND_DISPLAY } from "@/lib/kind-labels";
 import { anthropic, BRAND_MODEL } from "./claude";
 import { BRAND_SYSTEM_BLOCKS } from "./prompts";
 
+/**
+ * Project shape consumed dal modulo brand/identity (M16).
+ * Sostituisce il vecchio lookup ArtistProfile via userId.
+ */
+export interface IdentityProject {
+  id: string;
+  kind: CreatorKind;
+  displayName: string;
+  niche: string | null;
+  city: string | null;
+  bio: string | null;
+}
+
 export const IdentityInputSchema = z.object({
-  stageName: z.string().min(1),
-  genre: z.string().min(1),
-  city: z.string().optional(),
-  bio: z.string().optional(),
   moodKeywords: z.array(z.string()).max(10),
   referenceArtists: z.array(z.string()).max(5),
   favoriteColors: z.array(z.string()).max(5),
 });
-export type IdentityInput = z.infer<typeof IdentityInputSchema>;
+export type IdentityInputBody = z.infer<typeof IdentityInputSchema>;
+
+export interface IdentityInput extends IdentityInputBody {
+  project: IdentityProject;
+}
 
 const PaletteColor = z.object({
   hex: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
@@ -52,7 +67,7 @@ export type BrandIdentityOutput = z.infer<typeof BrandIdentitySchema>;
 const TOOL = {
   name: "generate_brand_identity",
   description:
-    "Genera identità visiva completa coerente con il profilo artista.",
+    "Genera identità visiva completa coerente con il profilo del creator (kind-aware).",
   input_schema: {
     type: "object",
     required: [
@@ -180,11 +195,33 @@ const TOOL = {
 export async function generateBrandIdentity(
   input: IdentityInput,
 ): Promise<BrandIdentityOutput> {
-  const userMessage = `Genera l'identità visiva per questo artista:
+  const { project } = input;
+  const labels = getKindLabels(project.kind);
+  const kindDisplay = KIND_DISPLAY[project.kind];
+  const niche = project.niche?.trim() || "non specificata";
+
+  const promptPayload = {
+    kind: project.kind,
+    kindLabel: labels.creator,
+    kindDisplay,
+    creator: {
+      displayName: project.displayName,
+      niche: project.niche,
+      city: project.city,
+      bio: project.bio,
+    },
+    moodKeywords: input.moodKeywords,
+    referenceArtists: input.referenceArtists,
+    favoriteColors: input.favoriteColors,
+  };
+
+  const userMessage = `Genera l'identità visiva per ${kindDisplay} in nicchia ${niche}:
 
 \`\`\`json
-${JSON.stringify(input, null, 2)}
+${JSON.stringify(promptPayload, null, 2)}
 \`\`\`
+
+Adatta tono e linguaggio al kind ${project.kind} (un ${labels.creator}). Esempi di tone-of-voice devono suonare come scriverebbe questo specifico tipo di creator.
 
 Vincoli SVG logo:
 - Usa viewBox="0 0 100 100"

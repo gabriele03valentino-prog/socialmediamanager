@@ -147,20 +147,29 @@ export interface CalendarPayload {
   drafts: Draft[];
   suggestions: Suggestion[];
   appUrl: string;
+  /**
+   * Nome del progetto — se passato viene anteposto al SUMMARY come
+   * `[displayName] [BOZZA · …] …`. Pensato per il feed iCal multi-progetto:
+   * permette di distinguere a colpo d'occhio gli eventi quando il calendario
+   * è sottoscritto da più feed contemporaneamente.
+   */
+  projectLabel?: string;
 }
 
 export function buildICalendar({
   drafts,
   suggestions,
   appUrl,
+  projectLabel,
 }: CalendarPayload): string {
   const events: IcsEvent[] = [];
+  const prefix = projectLabel ? `[${projectLabel}] ` : "";
 
   for (const d of drafts) {
     if (!d.scheduledFor) continue;
     events.push({
       uid: `draft-${d.id}@smm-studio`,
-      summary: `[BOZZA · ${d.platform}] ${truncate(d.caption, 60)}`,
+      summary: `${prefix}[BOZZA · ${d.platform}] ${truncate(d.caption, 60)}`,
       description: [
         d.caption,
         "",
@@ -179,7 +188,7 @@ export function buildICalendar({
     const start = applyTimeToDate(s.forDate, s.suggestedTime);
     events.push({
       uid: `suggestion-${s.id}@smm-studio`,
-      summary: `[SUGG · ${s.platform}] ${truncate(s.hook, 60)}`,
+      summary: `${prefix}[SUGG · ${s.platform}] ${truncate(s.hook, 60)}`,
       description: [
         s.hook,
         "",
@@ -200,13 +209,17 @@ export function buildICalendar({
     });
   }
 
+  const calName = projectLabel
+    ? `SMM Studio — ${projectLabel}`
+    : "SMM Studio — piano editoriale";
+
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//SMM Studio//IT//IT",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:SMM Studio — piano editoriale`,
+    `X-WR-CALNAME:${icsEscape(calName)}`,
     `X-WR-TIMEZONE:Europe/Rome`,
     ...events.map(eventBlock),
     "END:VCALENDAR",

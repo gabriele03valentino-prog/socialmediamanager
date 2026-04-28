@@ -21,18 +21,9 @@ model User {
   image         String?
   timezone      String    @default("Europe/Rome")
 
-  artistProfile  ArtistProfile?
-  accounts       Account[]
-  sessions       Session[]
-  socialAccounts SocialAccount[]
-  suggestions    Suggestion[]
-  drafts         Draft[]
-  brandIdentity  BrandIdentity?
-  stageNameIdeas StageNameIdea[]
-  neuroScores    NeuroScore[]
-  personas       Persona[]
-  campaigns      Campaign[]
-  goals          Goal[]
+  accounts Account[]
+  sessions Session[]
+  projects Project[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,37 +66,60 @@ model VerificationToken {
 
 // ---- Dominio applicativo ----
 
-model ArtistProfile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  stageName  String
-  genre      String // es. "trap", "drill", "cantautorato", "house"
-  city       String?
-  bio        String?  @db.Text
-  websiteUrl String?
-  goals      Json? // { targetFollowersIG: 10000, targetByDate: "2026-12-31", ... }
+enum CreatorKind {
+  ARTIST
+  YOUTUBER
+  INFLUENCER
+  DIVULGATORE
+  PODCASTER
+  BRAND
+}
+
+model Project {
+  id                   String      @id @default(cuid())
+  userId               String
+  kind                 CreatorKind
+  displayName          String
+  niche                String?
+  city                 String?
+  bio                  String?     @db.Text
+  websiteUrl           String?
+  emailFeedbackEnabled Boolean     @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  socialAccounts SocialAccount[]
+  suggestions    Suggestion[]
+  drafts         Draft[]
+  brandIdentity  BrandIdentity?
+  stageNameIdeas StageNameIdea[]
+  neuroScores    NeuroScore[]
+  personas       Persona[]
+  campaigns      Campaign[]
+  goals          Goal[]
+  dailyFeedback  DailyFeedback[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // Modulo Brand (M11): identità visiva generata da Claude.
 model BrandIdentity {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  palette      Json? // [{ hex, role, usage }, ...]
-  typography   Json? // { title: {family, weights, rationale}, body: {...} }
-  toneOfVoice  Json? // { adjectives: [...], examples: [...] }
-  moodKeywords String[] // es. ["notturno", "underground", "analogico"]
-  logoBrief    String?  @db.Text
-  logoSvg      String?  @db.Text // SVG inline generato da Claude
-  claudeDesignPrompt String? @db.Text
-  mjPrompt     String?  @db.Text
-  coverBriefs  Json?   // [{ title, brief, claudeDesignPrompt, mjPrompt, ideogramPrompt }]
+  id                 String   @id @default(cuid())
+  projectId          String   @unique
+  palette            Json? // [{ hex, role, usage }, ...]
+  typography         Json? // { title: {family, weights, rationale}, body: {...} }
+  toneOfVoice        Json? // { adjectives: [...], examples: [...] }
+  moodKeywords       String[] // es. ["notturno", "underground", "analogico"]
+  logoBrief          String?  @db.Text
+  logoSvg            String?  @db.Text // SVG inline generato da Claude
+  claudeDesignPrompt String?  @db.Text
+  mjPrompt           String?  @db.Text
+  coverBriefs        Json? // [{ title, brief, claudeDesignPrompt, mjPrompt, ideogramPrompt }]
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,34 +127,35 @@ model BrandIdentity {
 
 // Proposte nome d'arte dal wizard + cache delle check disponibilità handle.
 model StageNameIdea {
-  id           String   @id @default(cuid())
-  userId       String
+  id           String  @id @default(cuid())
+  projectId    String
   name         String
-  rationale    String   @db.Text
+  rationale    String  @db.Text
   availability Json? // { instagram: "free"|"taken"|"unknown", tiktok: "...", spotify: "..." }
-  chosen       Boolean  @default(false)
+  chosen       Boolean @default(false)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@index([userId, createdAt])
+  @@index([projectId, createdAt])
 }
 
-// Feedback giornaliero prodotto dal cron serale. Un record per user+data.
+// Feedback giornaliero prodotto dal cron serale. Un record per project+data.
 model DailyFeedback {
-  id        String   @id @default(cuid())
-  userId    String
-  forDate   DateTime // giorno a cui si riferisce (ore 00:00)
-  headline  String   @db.Text
-  body      String   @db.Text
-  postsCount Int     @default(0)
+  id          String   @id @default(cuid())
+  projectId   String
+  forDate     DateTime // giorno a cui si riferisce (ore 00:00)
+  headline    String   @db.Text
+  body        String   @db.Text
+  postsCount  Int      @default(0)
   generatedBy String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@unique([userId, forDate])
-  @@index([userId, forDate])
+  @@unique([projectId, forDate])
 }
 
 enum Platform {
@@ -152,43 +167,43 @@ enum Platform {
 }
 
 model SocialAccount {
-  id                String   @id @default(cuid())
-  userId            String
-  platform          Platform
-  handle            String // @nome_utente o nome canale
-  externalId        String // id stabile restituito dalla piattaforma
-  accessTokenEnc    String   @db.Text // cifrato
-  refreshTokenEnc   String?  @db.Text
-  expiresAt         DateTime?
-  scopes            String[] // array di scope concessi
-  meta              Json? // dati specifici piattaforma (es. pageId per FB, channelId per YT)
-  lastSyncedAt      DateTime?
-  lastSyncError     String?  @db.Text
+  id              String    @id @default(cuid())
+  projectId       String
+  platform        Platform
+  handle          String // @nome_utente o nome canale
+  externalId      String // id stabile restituito dalla piattaforma
+  accessTokenEnc  String    @db.Text // cifrato
+  refreshTokenEnc String?   @db.Text
+  expiresAt       DateTime?
+  scopes          String[] // array di scope concessi
+  meta            Json? // dati specifici piattaforma (es. pageId per FB, channelId per YT)
+  lastSyncedAt    DateTime?
+  lastSyncError   String?   @db.Text
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  metrics           MetricSnapshot[]
-  posts             Post[]
-  audienceInsights  AudienceInsight[]
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  metrics          MetricSnapshot[]
+  posts            Post[]
+  audienceInsights AudienceInsight[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, platform, externalId])
-  @@index([userId, platform])
+  @@unique([projectId, platform, externalId])
+  @@index([projectId, platform])
 }
 
 model MetricSnapshot {
-  id            String   @id @default(cuid())
-  accountId     String
-  capturedAt    DateTime @default(now())
-  followers     Int?
-  following     Int?
-  postsCount    Int?
-  reach         Int?
-  impressions   Int?
-  profileViews  Int?
+  id           String   @id @default(cuid())
+  accountId    String
+  capturedAt   DateTime @default(now())
+  followers    Int?
+  following    Int?
+  postsCount   Int?
+  reach        Int?
+  impressions  Int?
+  profileViews Int?
   // campi piattaforma-specifici (watch time YT, popularity Spotify, ecc.)
-  extra         Json?
+  extra        Json?
 
   account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -207,22 +222,22 @@ enum MediaType {
 }
 
 model Post {
-  id         String   @id @default(cuid())
-  accountId  String
-  externalId String
-  postedAt   DateTime
-  mediaType  MediaType @default(OTHER)
-  caption    String?  @db.Text
-  permalink  String?
-  likes      Int?
-  comments   Int?
-  shares     Int?
-  saves      Int?
-  views      Int?
-  reach      Int?
-  impressions Int?
+  id           String    @id @default(cuid())
+  accountId    String
+  externalId   String
+  postedAt     DateTime
+  mediaType    MediaType @default(OTHER)
+  caption      String?   @db.Text
+  permalink    String?
+  likes        Int?
+  comments     Int?
+  shares       Int?
+  saves        Int?
+  views        Int?
+  reach        Int?
+  impressions  Int?
   // payload grezzo per metriche specifiche (watch time, CTR, ecc.)
-  raw        Json?
+  raw          Json?
   lastSyncedAt DateTime?
 
   account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -263,22 +278,22 @@ enum SuggestionStatus {
 }
 
 model Suggestion {
-  id            String      @id @default(cuid())
-  userId        String
+  id            String           @id @default(cuid())
+  projectId     String
   forDate       DateTime
   platform      Platform
   contentType   ContentType
-  hook          String      @db.Text
-  caption       String      @db.Text
+  hook          String           @db.Text
+  caption       String           @db.Text
   hashtags      String[]
   cta           String?
   suggestedTime String? // HH:mm in timezone utente
-  rationale     String?     @db.Text
+  rationale     String?          @db.Text
   status        SuggestionStatus @default(PROPOSED)
   generatedBy   String? // es. "claude-sonnet-4-6"
   campaignId    String?
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   draft      Draft?
   campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   neuroScore NeuroScore?
@@ -286,8 +301,8 @@ model Suggestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, forDate])
-  @@index([userId, status])
+  @@index([projectId, forDate])
+  @@index([projectId, status])
   @@index([campaignId])
 }
 
@@ -299,27 +314,27 @@ enum DraftStatus {
 }
 
 model Draft {
-  id            String      @id @default(cuid())
-  userId        String
-  suggestionId  String?     @unique
-  platform      Platform
-  contentType   ContentType
-  scheduledFor  DateTime?
-  caption       String      @db.Text
-  hashtags      String[]
-  mediaNotes    String?     @db.Text
-  checklist     Json? // [{ text: "Registra 15s in studio", done: false }, ...]
-  status        DraftStatus @default(TODO)
+  id           String      @id @default(cuid())
+  projectId    String
+  suggestionId String?     @unique
+  platform     Platform
+  contentType  ContentType
+  scheduledFor DateTime?
+  caption      String      @db.Text
+  hashtags     String[]
+  mediaNotes   String?     @db.Text
+  checklist    Json? // [{ text: "Registra 15s in studio", done: false }, ...]
+  status       DraftStatus @default(TODO)
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   suggestion Suggestion? @relation(fields: [suggestionId], references: [id])
   neuroScore NeuroScore?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, status])
-  @@index([userId, scheduledFor])
+  @@index([projectId, status])
+  @@index([projectId, scheduledFor])
 }
 
 // Modulo Marketing (M12): neuro-score ispirato ai segnali brain-predictive
@@ -327,44 +342,44 @@ model Draft {
 // system prompt che codifica i segnali principali del paper.
 
 model NeuroScore {
-  id           String   @id @default(cuid())
-  userId       String
-  suggestionId String?  @unique
-  draftId      String?  @unique
+  id           String  @id @default(cuid())
+  projectId    String
+  suggestionId String? @unique
+  draftId      String? @unique
   score        Int // 0-100
   breakdown    Json // { hookStrength, emotionalValence, noveltyBias, rewardPrediction, socialSalience, curiosityGap }
   improvements Json // array di 3 stringhe
   generatedBy  String?
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   suggestion Suggestion? @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
   draft      Draft?      @relation(fields: [draftId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@index([userId])
+  @@index([projectId])
 }
 
 model Persona {
-  id             String  @id @default(cuid())
-  userId         String
+  id             String   @id @default(cuid())
+  projectId      String
   name           String
   ageRange       String
   location       String
   occupation     String
-  musicHabits    String  @db.Text
+  musicHabits    String   @db.Text
   platforms      String[]
   listeningTimes String?
   triggers       Json // array di trigger che funzionano (es. "drop snippet venerdì sera")
   culturalRefs   Json // array di ref (meme, influencer seguiti)
   generatedBy    String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
+  @@index([projectId])
 }
 
 enum CampaignType {
@@ -373,6 +388,12 @@ enum CampaignType {
   ALBUM
   LIVE
   MERCH
+  VIDEO_DROP
+  SERIES
+  EPISODE
+  SPONSOR
+  EVENT
+  PRODUCT
 }
 
 enum CampaignStatus {
@@ -382,23 +403,24 @@ enum CampaignStatus {
 }
 
 model Campaign {
-  id         String         @id @default(cuid())
-  userId     String
-  title      String
-  type       CampaignType
+  id          String         @id @default(cuid())
+  projectId   String
+  title       String
+  type        CampaignType
   releaseDate DateTime
-  preSaveUrl String?
-  goal       String?        @db.Text
-  status     CampaignStatus @default(DRAFT)
+  preSaveUrl  String?
+  goal        String?        @db.Text
+  status      CampaignStatus @default(DRAFT)
   generatedBy String?
+  details     Json?
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   suggestions Suggestion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, releaseDate])
+  @@index([projectId, releaseDate])
 }
 
 // Obiettivi tracciabili nel tempo (es. "10k follower IG entro il 31/12").
@@ -420,7 +442,7 @@ enum GoalStatus {
 
 model Goal {
   id          String     @id @default(cuid())
-  userId      String
+  projectId   String
   platform    Platform
   metric      GoalMetric
   targetValue Int
@@ -431,11 +453,11 @@ model Goal {
   status      GoalStatus @default(ACTIVE)
   note        String?    @db.Text
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, status])
-  @@index([userId, platform])
+  @@index([projectId, status])
+  @@index([projectId, platform])
 }

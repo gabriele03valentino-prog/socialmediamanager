@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export async function POST(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
@@ -12,13 +13,15 @@ export async function POST(
   }
   const { id } = await params;
 
-  const res = await prisma.suggestion.updateMany({
-    where: { id, userId: session.user.id, status: "PROPOSED" },
-    data: { status: "REJECTED" },
-  });
+  return withProjectRoute(req, async (project) => {
+    const res = await prisma.suggestion.updateMany({
+      where: { id, projectId: project.id, status: "PROPOSED" },
+      data: { status: "REJECTED" },
+    });
 
-  if (res.count === 0) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
-  }
-  return NextResponse.json({ ok: true });
+    if (res.count === 0) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  });
 }

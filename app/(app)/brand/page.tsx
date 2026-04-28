@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrandHubPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
-  const [profile, brand, ideasCount] = await Promise.all([
-    prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
-    prisma.brandIdentity.findUnique({ where: { userId: session.user.id } }),
-    prisma.stageNameIdea.count({ where: { userId: session.user.id } }),
+  const [brand, ideasCount] = await Promise.all([
+    prisma.brandIdentity.findUnique({ where: { projectId: project.id } }),
+    prisma.stageNameIdea.count({ where: { projectId: project.id } }),
   ]);
 
   const hasIdentity = !!brand?.palette;
@@ -39,8 +39,8 @@ export default async function BrandHubPage() {
           </div>
           <h2 className="text-lg font-semibold">Stage name</h2>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            {profile?.stageName
-              ? `Attuale: "${profile.stageName}". Puoi comunque esplorare altre opzioni.`
+            {project.displayName
+              ? `Attuale: "${project.displayName}". Puoi comunque esplorare altre opzioni.`
               : "Genera 10+ proposte con rationale e check disponibilità su IG/TikTok/Spotify."}
           </p>
           <p className="mt-3 text-xs text-neutral-500">

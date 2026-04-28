@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Platform } from "@prisma/client";
-import { auth } from "@/auth";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
@@ -17,11 +17,11 @@ export default async function AnalyticsPage({
   const platform = raw.toUpperCase() as Platform;
   if (!VALID.includes(platform)) notFound();
 
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const account = await prisma.socialAccount.findFirst({
-    where: { userId: session.user.id, platform },
+    where: { projectId: project.id, platform },
     include: {
       metrics: { orderBy: { capturedAt: "desc" }, take: 30 },
       posts: { orderBy: { postedAt: "desc" }, take: 20 },

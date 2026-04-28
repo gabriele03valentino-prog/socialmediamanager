@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
-import { createGoalForUser } from "@/lib/goals";
+import { createGoalForProject } from "@/lib/goals";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,38 +19,42 @@ const Body = z.object({
   note: z.string().max(500).optional(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const goals = await prisma.goal.findMany({
-    where: { userId: session.user.id },
-    orderBy: [{ status: "asc" }, { targetDate: "asc" }, { createdAt: "desc" }],
+  return withProjectRoute(req, async (project) => {
+    const goals = await prisma.goal.findMany({
+      where: { projectId: project.id },
+      orderBy: [{ status: "asc" }, { targetDate: "asc" }, { createdAt: "desc" }],
+    });
+    return NextResponse.json({ ok: true, goals });
   });
-  return NextResponse.json({ ok: true, goals });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const body = await req.json().catch(() => ({}));
-  const parsed = Body.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  }
+  return withProjectRoute(req, async (project) => {
+    const body = await req.json().catch(() => ({}));
+    const parsed = Body.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
 
-  const goal = await createGoalForUser(session.user.id, {
-    platform: parsed.data.platform,
-    metric: parsed.data.metric,
-    targetValue: parsed.data.targetValue,
-    targetDate: parsed.data.targetDate
-      ? new Date(`${parsed.data.targetDate}T23:59:59Z`)
-      : null,
-    note: parsed.data.note,
+    const goal = await createGoalForProject(project.id, {
+      platform: parsed.data.platform,
+      metric: parsed.data.metric,
+      targetValue: parsed.data.targetValue,
+      targetDate: parsed.data.targetDate
+        ? new Date(`${parsed.data.targetDate}T23:59:59Z`)
+        : null,
+      note: parsed.data.note,
+    });
+
+    return NextResponse.json({ ok: true, goal });
   });
-
-  return NextResponse.json({ ok: true, goal });
 }

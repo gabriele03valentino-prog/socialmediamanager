@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { scoreContent } from "@/lib/ai/marketing/neuroscore";
 import { prisma } from "@/lib/db";
 import { LIMITS, rateLimitOrResponse } from "@/lib/rate-limit";
@@ -14,17 +15,12 @@ const Body = z.object({
   draftId: z.string().optional(),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const limited = rateLimitOrResponse(
-    session.user.id,
-    "marketing.score",
-    LIMITS.marketingScore,
-  );
-  if (limited) return limited;
+  const userId = session.user.id;
   const body = await req.json().catch(() => ({}));
   const parsed = Body.safeParse(body);
   if (!parsed.success) {
@@ -38,70 +34,78 @@ export async function POST(req: Request) {
     );
   }
 
-  const profile = await prisma.artistProfile.findUnique({
-    where: { userId: session.user.id },
+  return withProjectRoute(req, async (project) => {
+    const limited = rateLimitOrResponse(
+      userId,
+      "marketing.score",
+      LIMITS.marketingScore,
+      project.id,
+    );
+    if (limited) return limited;
+    // Universal signals: niente kind branching, ma diamo al modello il
+    // contesto creator generico (displayName/niche/city) per radicare le
+    // valutazioni neuro al brand del progetto attivo.
+    const creatorCtx = {
+      stageName: project.displayName,
+      genre: project.niche ?? undefined,
+      city: project.city,
+    };
+
+    let input;
+    if (suggestionId) {
+      const s = await prisma.suggestion.findUnique({ where: { id: suggestionId } });
+      if (!s || s.projectId !== project.id) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      input = {
+        platform: s.platform,
+        contentType: s.contentType,
+        hook: s.hook,
+        caption: s.caption,
+        hashtags: s.hashtags,
+        suggestedTime: s.suggestedTime,
+        cta: s.cta,
+        artist: creatorCtx,
+      };
+    } else {
+      const d = await prisma.draft.findUnique({ where: { id: draftId } });
+      if (!d || d.projectId !== project.id) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      input = {
+        platform: d.platform,
+        contentType: d.contentType,
+        caption: d.caption,
+        hashtags: d.hashtags,
+        mediaNotes: d.mediaNotes,
+        artist: creatorCtx,
+      };
+    }
+
+    try {
+      const result = await scoreContent(input);
+      const saved = await prisma.neuroScore.upsert({
+        where: suggestionId ? { suggestionId } : { draftId: draftId! },
+        create: {
+          projectId: project.id,
+          suggestionId,
+          draftId,
+          score: result.score,
+          breakdown: result.breakdown as never,
+          improvements: result.improvements as never,
+          generatedBy: "claude-sonnet-4-6",
+        },
+        update: {
+          score: result.score,
+          breakdown: result.breakdown as never,
+          improvements: result.improvements as never,
+          generatedBy: "claude-sonnet-4-6",
+        },
+      });
+      return NextResponse.json({ ok: true, neuroScore: saved, summary: result.summary });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
   });
-
-  let input;
-  if (suggestionId) {
-    const s = await prisma.suggestion.findUnique({ where: { id: suggestionId } });
-    if (!s || s.userId !== session.user.id) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    input = {
-      platform: s.platform,
-      contentType: s.contentType,
-      hook: s.hook,
-      caption: s.caption,
-      hashtags: s.hashtags,
-      suggestedTime: s.suggestedTime,
-      cta: s.cta,
-      artist: profile
-        ? { stageName: profile.stageName, genre: profile.genre, city: profile.city }
-        : undefined,
-    };
-  } else {
-    const d = await prisma.draft.findUnique({ where: { id: draftId } });
-    if (!d || d.userId !== session.user.id) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    input = {
-      platform: d.platform,
-      contentType: d.contentType,
-      caption: d.caption,
-      hashtags: d.hashtags,
-      mediaNotes: d.mediaNotes,
-      artist: profile
-        ? { stageName: profile.stageName, genre: profile.genre, city: profile.city }
-        : undefined,
-    };
-  }
-
-  try {
-    const result = await scoreContent(input);
-    const saved = await prisma.neuroScore.upsert({
-      where: suggestionId
-        ? { suggestionId }
-        : { draftId: draftId! },
-      create: {
-        userId: session.user.id,
-        suggestionId,
-        draftId,
-        score: result.score,
-        breakdown: result.breakdown as never,
-        improvements: result.improvements as never,
-        generatedBy: "claude-sonnet-4-6",
-      },
-      update: {
-        score: result.score,
-        breakdown: result.breakdown as never,
-        improvements: result.improvements as never,
-        generatedBy: "claude-sonnet-4-6",
-      },
-    });
-    return NextResponse.json({ ok: true, neuroScore: saved, summary: result.summary });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
 }

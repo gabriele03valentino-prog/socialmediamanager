@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -17,25 +18,27 @@ export default async function MarketingHubPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
   const sp = await searchParams;
-  const userId = session.user.id;
 
   const [personasCount, campaigns, avgScore] = await Promise.all([
-    prisma.persona.count({ where: { userId } }),
+    prisma.persona.count({ where: { projectId: project.id } }),
     prisma.campaign.findMany({
-      where: { userId },
+      where: { projectId: project.id },
       orderBy: { releaseDate: "desc" },
       take: 10,
       include: { _count: { select: { suggestions: true } } },
     }),
     prisma.neuroScore.aggregate({
-      where: { userId },
+      where: { projectId: project.id },
       _avg: { score: true },
-      _count: true,
+      _count: { _all: true },
     }),
   ]);
+
+  const scoreCount = avgScore._count._all;
+  const scoreAvg = avgScore._avg.score ?? 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -57,7 +60,7 @@ export default async function MarketingHubPage({
         </div>
       ) : null}
 
-      {personasCount === 0 && avgScore._count === 0 && campaigns.length === 0 ? (
+      {personasCount === 0 && scoreCount === 0 && campaigns.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
           <h2 className="text-base font-semibold">Inizia da qui</h2>
           <p className="mt-1 text-sm text-neutral-500">
@@ -121,12 +124,10 @@ export default async function MarketingHubPage({
             Neuro-score medio
           </div>
           <div className="mt-2 text-2xl font-semibold">
-            {avgScore._count > 0
-              ? `${Math.round(avgScore._avg.score ?? 0)}/100`
-              : "—"}
+            {scoreCount > 0 ? `${Math.round(scoreAvg)}/100` : "—"}
           </div>
           <p className="mt-1 text-xs text-neutral-500">
-            {avgScore._count} contenuti analizzati
+            {scoreCount} contenuti analizzati
           </p>
           <span className="mt-3 inline-block text-xs text-neutral-400">
             apri un suggerimento o una bozza per analizzare

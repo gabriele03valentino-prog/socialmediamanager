@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { withProjectRoute } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,14 @@ const Patch = z.object({
     .optional(),
 });
 
+async function loadInProject(id: string, projectId: string) {
+  const goal = await prisma.goal.findUnique({ where: { id } });
+  if (!goal || goal.projectId !== projectId) return null;
+  return goal;
+}
+
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
@@ -26,33 +33,36 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const goal = await prisma.goal.findUnique({ where: { id } });
-  if (!goal || goal.userId !== session.user.id) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-  const body = await req.json().catch(() => ({}));
-  const parsed = Patch.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  }
 
-  const updated = await prisma.goal.update({
-    where: { id },
-    data: {
-      ...parsed.data,
-      targetDate:
-        parsed.data.targetDate === undefined
-          ? undefined
-          : parsed.data.targetDate === null
-            ? null
-            : new Date(`${parsed.data.targetDate}T23:59:59Z`),
-    },
+  return withProjectRoute(req, async (project) => {
+    const goal = await loadInProject(id, project.id);
+    if (!goal) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    const body = await req.json().catch(() => ({}));
+    const parsed = Patch.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+
+    const updated = await prisma.goal.update({
+      where: { id },
+      data: {
+        ...parsed.data,
+        targetDate:
+          parsed.data.targetDate === undefined
+            ? undefined
+            : parsed.data.targetDate === null
+              ? null
+              : new Date(`${parsed.data.targetDate}T23:59:59Z`),
+      },
+    });
+    return NextResponse.json({ ok: true, goal: updated });
   });
-  return NextResponse.json({ ok: true, goal: updated });
 }
 
 export async function DELETE(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
@@ -60,10 +70,13 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const goal = await prisma.goal.findUnique({ where: { id } });
-  if (!goal || goal.userId !== session.user.id) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-  await prisma.goal.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+
+  return withProjectRoute(req, async (project) => {
+    const goal = await loadInProject(id, project.id);
+    if (!goal) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    await prisma.goal.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  });
 }
