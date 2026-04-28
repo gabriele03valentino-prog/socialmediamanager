@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/utils";
 
@@ -13,11 +14,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function BozzePage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const drafts = await prisma.draft.findMany({
-    where: { userId: session.user.id },
+    where: { projectId: project.id },
     orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
   });
 

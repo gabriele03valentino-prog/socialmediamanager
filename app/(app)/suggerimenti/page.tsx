@@ -1,16 +1,17 @@
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { GeneratePlanButton } from "@/components/GeneratePlanButton";
 import { SuggestionCard } from "@/components/SuggestionCard";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuggestionsPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const suggestions = await prisma.suggestion.findMany({
-    where: { userId: session.user.id, status: "PROPOSED" },
+    where: { projectId: project.id, status: "PROPOSED" },
     orderBy: { forDate: "asc" },
     include: { neuroScore: true },
   });
@@ -22,7 +23,7 @@ export default async function SuggestionsPage() {
           <h1 className="text-2xl font-semibold">Suggerimenti</h1>
           <p className="text-sm text-neutral-500">
             Piano settimanale generato da Claude in base ai dati dei tuoi profili e al
-            tuo profilo artista. Accetta per creare una bozza, o lancia il neuro-score
+            progetto attivo. Accetta per creare una bozza, o lancia il neuro-score
             per un check neuromarketing.
           </p>
         </div>
@@ -57,12 +58,12 @@ export default async function SuggestionsPage() {
               </span>
               <span>
                 <a
-                  href="/impostazioni/profilo"
+                  href="/progetti"
                   className="font-medium text-brand-600 hover:underline"
                 >
-                  Compila il profilo artista
+                  Compila i dati del progetto
                 </a>{" "}
-                — genere, stage name, città, obiettivi (es. "10k follower IG entro 6 mesi").
+                — nicchia, città, bio e obiettivi.
               </span>
             </li>
             <li className="flex gap-3">

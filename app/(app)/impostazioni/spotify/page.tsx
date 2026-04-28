@@ -1,4 +1,5 @@
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +9,12 @@ export default async function SpotifySettingsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
   const sp = await searchParams;
 
   const account = await prisma.socialAccount.findFirst({
-    where: { userId: session.user.id, platform: "SPOTIFY" },
+    where: { projectId: project.id, platform: "SPOTIFY" },
     include: {
       metrics: { orderBy: { capturedAt: "desc" }, take: 1 },
     },

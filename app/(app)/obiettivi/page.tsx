@@ -1,16 +1,17 @@
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { GoalsView } from "@/components/GoalsView";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 import { getGoalProgress } from "@/lib/goals";
 
 export const dynamic = "force-dynamic";
 
 export default async function ObiettiviPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const goals = await prisma.goal.findMany({
-    where: { userId: session.user.id },
+    where: { projectId: project.id },
     orderBy: [{ status: "asc" }, { targetDate: "asc" }, { createdAt: "desc" }],
   });
 

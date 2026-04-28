@@ -1,13 +1,13 @@
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { CalendarGrid, type CalendarItem } from "@/components/CalendarGrid";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarioPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  const userId = session.user.id;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -18,14 +18,14 @@ export default async function CalendarioPage() {
   const [suggestions, drafts] = await Promise.all([
     prisma.suggestion.findMany({
       where: {
-        userId,
+        projectId: project.id,
         status: "PROPOSED",
         forDate: { gte: start, lt: end },
       },
     }),
     prisma.draft.findMany({
       where: {
-        userId,
+        projectId: project.id,
         status: { in: ["TODO", "READY", "PUBLISHED"] },
         scheduledFor: { gte: start, lt: end },
       },

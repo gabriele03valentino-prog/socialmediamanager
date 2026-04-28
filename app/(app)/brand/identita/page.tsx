@@ -1,25 +1,24 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import {
   type BrandIdentityData,
   BrandIdentityView,
 } from "@/components/BrandIdentityView";
 import { BrandIdentityGenerator } from "@/components/BrandIdentityGenerator";
 import { CoverBriefGenerator } from "@/components/CoverBriefGenerator";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function IdentitaPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
-  const [profile, brand] = await Promise.all([
-    prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
-    prisma.brandIdentity.findUnique({ where: { userId: session.user.id } }),
-  ]);
+  const brand = await prisma.brandIdentity.findUnique({
+    where: { projectId: project.id },
+  });
 
-  const hasProfile = !!profile;
   const hasIdentity = !!(brand && brand.palette);
 
   const identityData: BrandIdentityData | null = hasIdentity
@@ -70,40 +69,25 @@ export default async function IdentitaPage() {
         </p>
       </header>
 
-      {!hasProfile ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
-          Prima compila il{" "}
-          <Link
-            href="/impostazioni/profilo"
-            className="underline hover:no-underline"
-          >
-            profilo artista
-          </Link>{" "}
-          (stage name + genere).
+      <BrandIdentityGenerator hasExisting={hasIdentity} />
+
+      {identityData ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
+          <BrandIdentityView data={identityData} />
         </div>
-      ) : (
-        <>
-          <BrandIdentityGenerator hasExisting={hasIdentity} />
+      ) : null}
 
-          {identityData ? (
-            <div className="rounded-xl border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900">
-              <BrandIdentityView data={identityData} />
-            </div>
-          ) : null}
-
-          {hasIdentity ? (
-            <section className="space-y-4">
-              <h2 className="text-lg font-semibold">Cover release</h2>
-              <p className="text-sm text-neutral-500">
-                Per ogni singolo, EP o album genera un brief coerente con la
-                brand identity. Il risultato include prompt pronti per Claude
-                Design, Midjourney e Ideogram.
-              </p>
-              <CoverBriefGenerator existing={coverBriefs} />
-            </section>
-          ) : null}
-        </>
-      )}
+      {hasIdentity ? (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Cover release</h2>
+          <p className="text-sm text-neutral-500">
+            Per ogni singolo, EP o album genera un brief coerente con la
+            brand identity. Il risultato include prompt pronti per Claude
+            Design, Midjourney e Ideogram.
+          </p>
+          <CoverBriefGenerator existing={coverBriefs} />
+        </section>
+      ) : null}
     </div>
   );
 }

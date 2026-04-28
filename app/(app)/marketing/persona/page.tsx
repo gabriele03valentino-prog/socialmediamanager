@@ -1,22 +1,20 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { GeneratePersonasButton } from "@/components/GeneratePersonasButton";
 import { PersonaCard } from "@/components/PersonaCard";
+import { getActiveProject } from "@/lib/active-project";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function PersonaPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
-  const [profile, personas] = await Promise.all([
-    prisma.artistProfile.findUnique({ where: { userId: session.user.id } }),
-    prisma.persona.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
+  const personas = await prisma.persona.findMany({
+    where: { projectId: project.id },
+    orderBy: { createdAt: "asc" },
+  });
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -33,26 +31,13 @@ export default async function PersonaPage() {
             il piano settimanale e le campagne release.
           </p>
         </div>
-        {profile ? (
-          <GeneratePersonasButton hasExisting={personas.length > 0} />
-        ) : null}
+        <GeneratePersonasButton hasExisting={personas.length > 0} />
       </header>
 
-      {!profile ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
-          Prima compila il{" "}
-          <Link
-            href="/impostazioni/profilo"
-            className="underline hover:no-underline"
-          >
-            profilo artista
-          </Link>
-          .
-        </div>
-      ) : personas.length === 0 ? (
+      {personas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500 dark:border-neutral-700">
           Nessuna persona generata. Clicca "Genera persona" per creare 2-3 archetipi
-          dell'audience a partire dal tuo genere, città e dati audience (se collegati).
+          dell'audience a partire dai dati del progetto, città e dati audience (se collegati).
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

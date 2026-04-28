@@ -1,17 +1,13 @@
 import Link from "next/link";
-import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { CampaignForm } from "@/components/CampaignForm";
-import { prisma } from "@/lib/db";
+import { getActiveProject } from "@/lib/active-project";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuovaCampagnaPage() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-
-  const profile = await prisma.artistProfile.findUnique({
-    where: { userId: session.user.id },
-  });
+  const project = await getActiveProject();
+  if (!project) redirect("/progetti?create=1");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -29,20 +25,7 @@ export default async function NuovaCampagnaPage() {
         </p>
       </header>
 
-      {!profile ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
-          Prima compila il{" "}
-          <Link
-            href="/impostazioni/profilo"
-            className="underline hover:no-underline"
-          >
-            profilo artista
-          </Link>
-          .
-        </div>
-      ) : (
-        <CampaignForm />
-      )}
+      <CampaignForm />
     </div>
   );
 }
