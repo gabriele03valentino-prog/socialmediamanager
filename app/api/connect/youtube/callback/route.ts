@@ -105,7 +105,7 @@ export async function GET(req: Request) {
       },
     });
 
-    return redirectToSettings(url, {
+    return redirectTo(url, safeNext(decoded.next), {
       connected: "youtube",
       channel: channel.title,
     });
@@ -115,11 +115,23 @@ export async function GET(req: Request) {
   }
 }
 
+function safeNext(next: string | undefined): string {
+  return next && next.startsWith("/") ? next : "/impostazioni";
+}
+
+function redirectTo(
+  base: URL,
+  path: string,
+  params: Record<string, string>,
+): NextResponse {
+  const target = new URL(path, base.origin);
+  for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
+  return NextResponse.redirect(target);
+}
+
 function redirectToSettings(
   base: URL,
   params: Record<string, string>,
 ): NextResponse {
-  const target = new URL("/impostazioni", base.origin);
-  for (const [k, v] of Object.entries(params)) target.searchParams.set(k, v);
-  return NextResponse.redirect(target);
+  return redirectTo(base, "/impostazioni", params);
 }

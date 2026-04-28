@@ -24,28 +24,32 @@ export async function GET(
     return NextResponse.json({ error: "unknown platform" }, { status: 404 });
   }
 
+  const reqUrl = new URL(req.url);
+  const origin = reqUrl.origin;
+  const nextParam = reqUrl.searchParams.get("next");
+  const nextQs =
+    nextParam && nextParam.startsWith("/")
+      ? `?next=${encodeURIComponent(nextParam)}`
+      : "";
+
   // IG e FB condividono lo stesso flusso OAuth Meta.
   if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
-    const origin = new URL(req.url).origin;
-    return NextResponse.redirect(`${origin}/api/connect/meta/start`);
+    return NextResponse.redirect(`${origin}/api/connect/meta/start${nextQs}`);
   }
 
   // YouTube ha la sua route dedicata.
   if (platform === "YOUTUBE") {
-    const origin = new URL(req.url).origin;
-    return NextResponse.redirect(`${origin}/api/connect/youtube/start`);
+    return NextResponse.redirect(`${origin}/api/connect/youtube/start${nextQs}`);
   }
 
   // TikTok idem.
   if (platform === "TIKTOK") {
-    const origin = new URL(req.url).origin;
-    return NextResponse.redirect(`${origin}/api/connect/tiktok/start`);
+    return NextResponse.redirect(`${origin}/api/connect/tiktok/start${nextQs}`);
   }
 
   // Spotify: non serve OAuth lato utente, l'utente incolla l'URL artista in
   // una pagina dedicata.
   if (platform === "SPOTIFY") {
-    const origin = new URL(req.url).origin;
     return NextResponse.redirect(`${origin}/impostazioni/spotify`);
   }
 
