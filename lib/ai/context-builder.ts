@@ -45,6 +45,13 @@ export interface RecommenderContext {
     city?: string | null;
     bio?: string | null;
   };
+  // Voce dell'utente derivata da brand identity + esempi di sue caption reali
+  // → Claude la replica per mantenere personalità coerente e non-AI.
+  voice?: {
+    toneAdjectives?: string[]; // es. ["diretto", "ironico", "underground"]
+    toneExamples?: string[]; // frasi-tipo che il brand userebbe
+    captionSamples?: string[]; // 5-10 caption reali dell'utente da imitare
+  };
   accounts: AccountSummary[];
   calendarAhead: {
     upcomingReleases?: string[];
@@ -92,6 +99,7 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
         orderBy: { createdAt: "desc" },
         take: 16,
       },
+      brandIdentity: { select: { toneOfVoice: true } },
     },
   });
 
@@ -156,6 +164,35 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
     insightTags: m.insightTags,
     captionSnippet: m.caption?.slice(0, 120) ?? null,
   }));
+  // Costruisci voce: tono dal brand identity + sample caption reali (top
+  // 5 per engagement) per mostrare a Claude come scrive davvero l'utente.
+  const tone = (project.brandIdentity?.toneOfVoice ?? null) as
+    | { adjectives?: string[]; examples?: string[] }
+    | null;
+  const allUserCaptions = project.socialAccounts
+    .flatMap((a) =>
+      a.posts.map((p) => ({
+        caption: p.caption,
+        score: engagement(p),
+        postedAt: p.postedAt.getTime(),
+      })),
+    )
+    .filter((p): p is { caption: string; score: number; postedAt: number } =>
+      Boolean(p.caption && p.caption.trim().length > 20),
+    )
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map((p) => p.caption.slice(0, 280));
+
+  const voice =
+    tone || allUserCaptions.length > 0
+      ? {
+          toneAdjectives: tone?.adjectives,
+          toneExamples: tone?.examples,
+          captionSamples: allUserCaptions.length > 0 ? allUserCaptions : undefined,
+        }
+      : undefined;
+
   return {
     today: now.toISOString().slice(0, 10),
     timezone: project.user.timezone,
@@ -166,6 +203,7 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
       city: project.city,
       bio: project.bio,
     },
+    voice,
     accounts,
     calendarAhead: {}, // popolato in una milestone successiva
     trends: { active: activeTrends },

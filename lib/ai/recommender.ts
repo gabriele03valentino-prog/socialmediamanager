@@ -121,6 +121,8 @@ ${JSON.stringify(ctx, null, 2)}
   const response = await anthropic().messages.create({
     model: MODEL,
     max_tokens: 4096,
+    // Temperature alta = più variabilità lessicale, evita pattern AI-style ripetitivi
+    temperature: 1.0,
     system: RECOMMENDER_SYSTEM_PROMPT_BLOCKS,
     tools: [PROPOSE_PLAN_TOOL],
     tool_choice: { type: "tool", name: PROPOSE_PLAN_TOOL.name },
