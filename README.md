@@ -229,6 +229,25 @@ stub nei connettori social).
 - [x] **M13** — Fix post-review: DB retry, editor feedback, env cleanup, handle check onesto
 - [x] **M14** — Automazioni: GitHub Action CI + reviewer subagent + Stop hook typecheck
 - [x] **M15** — Quality of life: mobile sidebar + empty states + rate limit + goal tracking + email Resend + export CSV/iCal + 48 test vitest + type guards Zod + USAGE.md
+- [x] **M16** — Multi-progetto: Project model + CreatorKind enum (ARTIST/YOUTUBER/INFLUENCER/DIVULGATORE/PODCASTER/BRAND), ProjectSwitcher sidebar, cookie HMAC firmato, cap 5 progetti/utente con allowlist override, AI prompts kind-aware, email feedback aggregata, rate-limit composito userId:projectId
+
+## Multi-progetto (M16)
+
+Un account utente può gestire fino a **5 progetti** indipendenti (cap rimuovibile via `EMAIL_ALLOWLIST`). Ogni progetto è di tipo **kind**:
+
+- `ARTIST` — musicista/producer (linee guida music-first attive)
+- `YOUTUBER` — long-form video
+- `INFLUENCER` — lifestyle/fashion
+- `DIVULGATORE` — educator
+- `PODCASTER` — podcast audio
+- `BRAND` — azienda
+
+Il progetto attivo è memorizzato in cookie HTTP-only firmato HMAC (`active_project_id`).
+Switch dal dropdown in cima alla sidebar. AI prompts adattano i suggerimenti
+al kind del progetto (KIND-SPECIFIC GUIDELINES sotto cache control).
+
+Cron giornalieri iterano `Project`. L'email feedback aggrega tutti i progetti
+attivi (toggle per-progetto via `emailFeedbackEnabled`) in 1 email/giorno per utente.
 
 ## Automazioni di qualità
 
