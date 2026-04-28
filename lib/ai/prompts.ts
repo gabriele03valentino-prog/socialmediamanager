@@ -83,7 +83,13 @@ Adatta i suggerimenti al \`project.kind\` del contesto. Cita il kind nel \`ratio
 
 In tutti i kind: hook 2s, hashtag mix 3+5+2, orari Italia 12-14 / 19-22.
 La struttura output (\`propose_weekly_plan\` con 7-10 suggerimenti concreti)
-non cambia per kind.`;
+non cambia per kind.
+
+## Trend awareness
+
+Se il context contiene \`trends.active\`, almeno 1-2 suggerimenti settimanali devono
+agganciare un trend specifico. Cita il trend nel \`rationale\` ("aggancio al sound
+trending X"). Se l'array è vuoto, non forzare — propone solo evergreen.`;
 
 export const RECOMMENDER_SYSTEM_PROMPT_BLOCKS = [
   {

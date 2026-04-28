@@ -36,5 +36,16 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, count: projects.length, results });
+  // Auto-expire trend con expiresAt scaduto (M18).
+  const expired = await prisma.trend.updateMany({
+    where: { status: "ACTIVE", expiresAt: { lt: new Date() } },
+    data: { status: "EXPIRED" },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    count: projects.length,
+    results,
+    trendsExpired: expired.count,
+  });
 }

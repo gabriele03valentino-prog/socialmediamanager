@@ -1,4 +1,4 @@
-import type { Project, Platform, CreatorKind } from "@prisma/client";
+import type { Project, Platform, CreatorKind, TrendKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 // Costruisce il JSON di contesto che diamo a Claude.
@@ -44,6 +44,9 @@ export interface RecommenderContext {
     upcomingReleases?: string[];
     liveDates?: string[];
   };
+  trends?: {
+    active: Array<{ kind: TrendKind; name: string; platforms: Platform[] }>;
+  };
 }
 
 export async function buildContext(projectId: string): Promise<RecommenderContext> {
@@ -59,6 +62,11 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
           posts: { orderBy: { postedAt: "desc" }, take: 20 },
           audienceInsights: { orderBy: { capturedAt: "desc" }, take: 1 },
         },
+      },
+      trends: {
+        where: { status: "ACTIVE" },
+        take: 10,
+        orderBy: { notedAt: "desc" },
       },
     },
   });
@@ -106,6 +114,11 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
   });
 
   const now = new Date();
+  const activeTrends = (project.trends ?? []).map((t) => ({
+    kind: t.kind,
+    name: t.name,
+    platforms: t.platforms,
+  }));
   return {
     today: now.toISOString().slice(0, 10),
     timezone: project.user.timezone,
@@ -118,6 +131,7 @@ export async function buildContext(projectId: string): Promise<RecommenderContex
     },
     accounts,
     calendarAhead: {}, // popolato in una milestone successiva
+    trends: { active: activeTrends },
   };
 }
 
