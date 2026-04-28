@@ -70,6 +70,8 @@ export const LIMITS = {
   marketingScore: { max: 30, windowMs: HOUR }, // on-demand su singolo draft
   marketingPersona: { max: 5, windowMs: DAY },
   marketingCampaign: { max: 5, windowMs: DAY },
+  trendsSuggest: { max: 3, windowMs: DAY }, // Claude propone trend, costoso e poco frequente
+
   // Cap globale per user across progetti — evita che un attaccante apra N
   // progetti e bypassi le quote per-route moltiplicando il danno.
   global: { max: 50, windowMs: HOUR },
