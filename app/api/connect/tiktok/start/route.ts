@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { signOAuthState, withProjectRoute } from "@/lib/active-project";
-import { authorizeUrl } from "@/lib/platforms/tiktok-oauth";
+import { authorizeUrl, generatePkcePair } from "@/lib/platforms/tiktok-oauth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,13 +26,23 @@ export async function GET(req: NextRequest) {
     const nextParam = reqUrl.searchParams.get("next");
     const nextUrl =
       nextParam && nextParam.startsWith("/") ? nextParam : "/impostazioni";
+    const { verifier, challenge } = generatePkcePair();
+    // Salviamo il verifier dentro lo state HMAC-firmato: tamper-proof,
+    // niente bisogno di cookie temporaneo. TikTok ritornerà lo state al
+    // callback dove estraiamo il verifier per il token exchange.
     const state = signOAuthState({
       userId: session.user!.id!,
       projectId: project.id,
       platform: "tiktok",
       next: nextUrl,
+      cv: verifier,
     });
-    const url = authorizeUrl({ clientKey, redirectUri, state });
+    const url = authorizeUrl({
+      clientKey,
+      redirectUri,
+      state,
+      codeChallenge: challenge,
+    });
     return NextResponse.redirect(url);
   });
 }

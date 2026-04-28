@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   if (!code || !state) return redirectToSettings(url, { error: "missing_code" });
 
   const decoded = verifyOAuthState(state);
-  if (!decoded || !decoded.userId || !decoded.projectId) {
+  if (!decoded || !decoded.userId || !decoded.projectId || !decoded.cv) {
     return redirectToSettings(url, { error: "state_mismatch" });
   }
   if (decoded.userId !== session.user.id) {
@@ -54,6 +54,7 @@ export async function GET(req: Request) {
       redirectUri,
       clientKey,
       clientSecret,
+      codeVerifier: decoded.cv,
     });
     const info = await fetchUserInfo(tokens.access_token);
 

@@ -16,6 +16,7 @@ export function authorizeUrl(params: {
   clientKey: string;
   redirectUri: string;
   state: string;
+  codeChallenge: string; // PKCE — TikTok V2 lo richiede obbligatorio
 }): string {
   const url = new URL(TIKTOK_AUTH_URL);
   url.searchParams.set("client_key", params.clientKey);
@@ -23,7 +24,19 @@ export function authorizeUrl(params: {
   url.searchParams.set("state", params.state);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", TIKTOK_SCOPES.join(","));
+  url.searchParams.set("code_challenge", params.codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
+}
+
+// Genera coppia PKCE (verifier + challenge S256). Verifier è random
+// 64-char base64url; challenge è SHA-256 del verifier in base64url.
+import { createHash, randomBytes } from "node:crypto";
+
+export function generatePkcePair(): { verifier: string; challenge: string } {
+  const verifier = randomBytes(48).toString("base64url"); // 64 char
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
 }
 
 export interface TiktokTokenResponse {
@@ -63,6 +76,7 @@ export async function exchangeCodeForTokens(args: {
   redirectUri: string;
   clientKey: string;
   clientSecret: string;
+  codeVerifier: string; // PKCE — required by TikTok V2
 }): Promise<TiktokTokenResponse> {
   const body = new URLSearchParams({
     client_key: args.clientKey,
@@ -70,6 +84,7 @@ export async function exchangeCodeForTokens(args: {
     code: args.code,
     grant_type: "authorization_code",
     redirect_uri: args.redirectUri,
+    code_verifier: args.codeVerifier,
   });
   return postTokenRequest(body);
 }
