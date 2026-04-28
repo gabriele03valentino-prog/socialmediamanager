@@ -99,6 +99,7 @@ model Project {
   goals          Goal[]
   dailyFeedback  DailyFeedback[]
   trends         Trend[]
+  postMortems    PostMortem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -241,7 +242,8 @@ model Post {
   raw          Json?
   lastSyncedAt DateTime?
 
-  account SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account    SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  postMortem PostMortem?
 
   @@unique([accountId, externalId])
   @@index([accountId, postedAt])
@@ -498,4 +500,36 @@ model Trend {
 
   @@index([projectId, status])
   @@index([projectId, kind])
+}
+
+// Post-mortem (M19) — analisi automatica 48h dopo pubblicazione, confronto vs baseline.
+enum PostOutcome {
+  OUTLIER_HIGH
+  ABOVE
+  NORMAL
+  BELOW
+  OUTLIER_LOW
+}
+
+model PostMortem {
+  id          String      @id @default(cuid())
+  postId      String      @unique
+  projectId   String
+  platform    Platform
+  contentType String
+  outcome     PostOutcome
+  metric      String
+  postValue   Int
+  baselineMed Int
+  ratio       Float
+  caption     String?     @db.Text
+  hashtags    String[]
+  insightTags String[]
+  createdAt   DateTime    @default(now())
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([projectId, outcome])
 }
