@@ -19,7 +19,7 @@ export default async function AppLayout({
     orderBy: { createdAt: "asc" },
   });
 
-  if (projects.length === 0) redirect("/progetti?create=1");
+  if (projects.length === 0) redirect("/onboarding");
 
   const activeProject =
     (await getActiveProject()) ||

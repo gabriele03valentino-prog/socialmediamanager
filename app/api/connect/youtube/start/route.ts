@@ -21,12 +21,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const origin = new URL(req.url).origin;
+    const reqUrl = new URL(req.url);
+    const origin = reqUrl.origin;
     const redirectUri = `${origin}/api/connect/youtube/callback`;
+    const nextParam = reqUrl.searchParams.get("next");
+    const nextUrl =
+      nextParam && nextParam.startsWith("/") ? nextParam : "/impostazioni";
     const state = signOAuthState({
       userId: session.user!.id!,
       projectId: project.id,
       platform: "youtube",
+      next: nextUrl,
     });
     const url = authorizeUrl({ clientId, redirectUri, state });
     return NextResponse.redirect(url);

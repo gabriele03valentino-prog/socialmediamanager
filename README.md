@@ -230,6 +230,18 @@ stub nei connettori social).
 - [x] **M14** — Automazioni: GitHub Action CI + reviewer subagent + Stop hook typecheck
 - [x] **M15** — Quality of life: mobile sidebar + empty states + rate limit + goal tracking + email Resend + export CSV/iCal + 48 test vitest + type guards Zod + USAGE.md
 - [x] **M16** — Multi-progetto: Project model + CreatorKind enum (ARTIST/YOUTUBER/INFLUENCER/DIVULGATORE/PODCASTER/BRAND), ProjectSwitcher sidebar, cookie HMAC firmato, cap 5 progetti/utente con allowlist override, AI prompts kind-aware, email feedback aggregata, rate-limit composito userId:projectId
+- [x] **M17** — Onboarding wizard v2: 4-step `/onboarding` (Kind → Identità → Social → Genera), card grid pickable, auto-generate primo piano, time-to-first-suggestion <2min
+
+## Onboarding wizard (M17)
+
+Nuovo utente (0 progetti) viene rediretto a `/onboarding` (full-screen, niente sidebar):
+
+1. **Tipo creator** — grid 2×3 con 6 KindCard colorate (icon + tagline + esempi format).
+2. **Identità** — form con `displayName` (obbligatorio), `niche`, `city`, `bio`. Crea Project via `POST /api/projects` + activate cookie.
+3. **Connect social** — lista IG+FB / TikTok / YouTube / Spotify con stato connect; Skip permesso. OAuth start/callback supportano `?next=URL` firmato HMAC per tornare allo step 4.
+4. **Genera primo piano** — auto `POST /api/suggestions/generate` al mount, loading state, redirect a `/suggerimenti` su success.
+
+Skip wizard → `/progetti?create=1` (form classico CreateProjectModal). Wizard sempre accessibile da `/onboarding`.
 
 ## Multi-progetto (M16)
 

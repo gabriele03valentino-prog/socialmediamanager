@@ -23,12 +23,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const origin = new URL(req.url).origin;
+    const reqUrl = new URL(req.url);
+    const origin = reqUrl.origin;
     const redirectUri = `${origin}/api/connect/meta/callback`;
+    const nextParam = reqUrl.searchParams.get("next");
+    const nextUrl =
+      nextParam && nextParam.startsWith("/") ? nextParam : "/impostazioni";
     const state = signOAuthState({
       userId: session.user!.id!,
       projectId: project.id,
       platform: "meta",
+      next: nextUrl,
     });
 
     const url = authorizeUrl({ clientId, redirectUri, state });
