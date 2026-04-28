@@ -232,6 +232,7 @@ stub nei connettori social).
 - [x] **M16** — Multi-progetto: Project model + CreatorKind enum (ARTIST/YOUTUBER/INFLUENCER/DIVULGATORE/PODCASTER/BRAND), ProjectSwitcher sidebar, cookie HMAC firmato, cap 5 progetti/utente con allowlist override, AI prompts kind-aware, email feedback aggregata, rate-limit composito userId:projectId
 - [x] **M17** — Onboarding wizard v2: 4-step `/onboarding` (Kind → Identità → Social → Genera), card grid pickable, auto-generate primo piano, time-to-first-suggestion <2min
 - [x] **M18** — Trend Library: model `Trend` con kind/status/platforms/expiresAt, CRUD API, Claude `suggestTrends`, recommender include trend ACTIVE, cron auto-EXPIRED, pagina `/trend` con tabs
+- [x] **M19** — Post-mortem auto: 48h dopo pubblicazione, model `PostMortem` con outcome bucket (OUTLIER_HIGH/ABOVE/NORMAL/BELOW/OUTLIER_LOW) + insightTags, recommender Learning loop, pagina `/learnings`
 
 ## Onboarding wizard (M17)
 
