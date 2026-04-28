@@ -20,6 +20,10 @@ export default auth((req) => {
 
   if (isPublic) return NextResponse.next();
   if (!req.auth) {
+    // API routes ritornano 401 JSON (i client non seguono redirect HTML)
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirectTo", pathname);
